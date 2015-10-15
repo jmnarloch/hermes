@@ -18,7 +18,7 @@ public class WorkTracker extends NodeCache<SubscriptionAssignmentAware, Subscrip
     private final SubscriptionAssignmentPathSerializer pathSerializer;
 
 
-    public WorkTracker(CuratorFramework curatorClient,
+public WorkTracker(CuratorFramework curatorClient,
                        ObjectMapper objectMapper,
                        String path,
                        String supervisorId,

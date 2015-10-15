@@ -11,12 +11,18 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
     private SubscriptionsCache subscriptionsCache;
     private WorkTracker workTracker;
     private ConsumersRegistry consumersRegistry;
+    private String supervisorId;
 
-    public BalancedWorkloadSupervisorController(ConsumersSupervisor supervisor, SubscriptionsCache subscriptionsCache, WorkTracker workTracker, ConsumersRegistry consumersRegistry) {
+    public BalancedWorkloadSupervisorController(ConsumersSupervisor supervisor,
+                                                SubscriptionsCache subscriptionsCache,
+                                                WorkTracker workTracker,
+                                                ConsumersRegistry consumersRegistry,
+                                                String supervisorId) {
         this.supervisor = supervisor;
         this.subscriptionsCache = subscriptionsCache;
         this.workTracker = workTracker;
         this.consumersRegistry = consumersRegistry;
+        this.supervisorId = supervisorId;
     }
 
     @Override
@@ -49,7 +55,7 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
         subscriptionsCache.start(ImmutableList.of(this));
         workTracker.start(ImmutableList.of(this));
         supervisor.start();
-        consumersRegistry.register();
+        consumersRegistry.register(supervisorId);
     }
 
     @Override
