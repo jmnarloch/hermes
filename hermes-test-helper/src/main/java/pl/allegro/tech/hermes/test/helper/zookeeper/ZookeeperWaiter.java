@@ -38,4 +38,8 @@ public class ZookeeperWaiter {
     public void untilZookeeperPathIsEmpty(final String path) {
         await().atMost(2, TimeUnit.SECONDS).until(() -> zookeeper.getChildren().forPath(path).isEmpty());
     }
+
+    public void untilZookeeperPathNotExists(final String path) {
+        await().atMost(2, TimeUnit.SECONDS).until(() -> zookeeper.checkExists().forPath(path) == null);
+    }
 }

@@ -314,5 +314,28 @@ public class HermesMetrics {
                 .build();
         return metricRegistry.meter(pathCompiler.compile(Meters.CONSUMER_ERRORS_OTHER, pathContext));
     }
+
+    public void registerOrUpdateConsumersWorkloadGauges(int missingResources, int deletedAssignmentsCount, int createdAssignmentsCount) {
+        registerOrUpdateStaticValueGauge(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_MISSING_RESOURCES, missingResources);
+        registerOrUpdateStaticValueGauge(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_DELETED_ASSIGNMENTS, deletedAssignmentsCount);
+        registerOrUpdateStaticValueGauge(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_CREATED_ASSIGNMENTS, createdAssignmentsCount);
+    }
+
+    private <T> void registerOrUpdateStaticValueGauge(String name, T value) {
+        Gauge gauge = metricRegistry.getGauges().get(name);
+        if (gauge == null) {
+            metricRegistry.register(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_MISSING_RESOURCES, new StaticValueGauge<>(value));
+        } else if (gauge instanceof StaticValueGauge) {
+            ((StaticValueGauge) gauge).setValue(value);
+        } else {
+            throw new IllegalArgumentException("A metric named " + name + " already exists and cannot be updated");
+        }
+    }
+
+    public void unregisterConsumersWorkloadGauges() {
+        metricRegistry.remove(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_MISSING_RESOURCES);
+        metricRegistry.remove(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_DELETED_ASSIGNMENTS);
+        metricRegistry.remove(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_CREATED_ASSIGNMENTS);
+    }
 }
 

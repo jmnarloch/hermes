@@ -1,26 +1,35 @@
-package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
+package pl.allegro.tech.hermes.consumers.supervisor.workload.mirror;
 
 import com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.allegro.tech.hermes.api.Subscription;
 import pl.allegro.tech.hermes.api.SubscriptionName;
+import pl.allegro.tech.hermes.common.config.ConfigFactory;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionsCache;
 import pl.allegro.tech.hermes.consumers.supervisor.ConsumersSupervisor;
+import pl.allegro.tech.hermes.consumers.supervisor.workload.SupervisorController;
+import pl.allegro.tech.hermes.consumers.supervisor.workload.WorkTracker;
+
+import static pl.allegro.tech.hermes.common.config.Configs.CONSUMER_WORKLOAD_ALGORITHM;
+import static pl.allegro.tech.hermes.common.config.Configs.CONSUMER_WORKLOAD_NODE_ID;
 
 public class MirroringSupervisorController implements SupervisorController {
     private ConsumersSupervisor supervisor;
     private SubscriptionsCache subscriptionsCache;
     private WorkTracker workTracker;
+    private ConfigFactory configFactory;
 
     private static final Logger logger = LoggerFactory.getLogger(MirroringSupervisorController.class);
 
     public MirroringSupervisorController(ConsumersSupervisor supervisor,
                                          SubscriptionsCache subscriptionsCache,
-                                         WorkTracker workTracker) {
+                                         WorkTracker workTracker,
+                                         ConfigFactory configFactory) {
         this.supervisor = supervisor;
         this.subscriptionsCache = subscriptionsCache;
         this.workTracker = workTracker;
+        this.configFactory = configFactory;
     }
 
     @Override
@@ -66,6 +75,7 @@ public class MirroringSupervisorController implements SupervisorController {
         subscriptionsCache.start(ImmutableList.of(this));
         workTracker.start(ImmutableList.of(this));
         supervisor.start();
+        logger.info("Consumer boot complete. Workload config: [{}]", configFactory.print(CONSUMER_WORKLOAD_NODE_ID, CONSUMER_WORKLOAD_ALGORITHM));
     }
 
     @Override

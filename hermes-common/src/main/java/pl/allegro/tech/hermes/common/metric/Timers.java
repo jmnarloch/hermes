@@ -33,7 +33,8 @@ public class Timers {
 
     CONSUMER_READ_LATENCY = "consumer." + HOSTNAME + ".read-latency",
 
+    CONSUMER_WORKLOAD_REBALANCE_DURATION = "consumer.workload.rebalance.duration",
+
     CONSUMER_EXECUTOR_DURATION = "consumer." + HOSTNAME + ".executors." + EXECUTOR_NAME + ".duration",
             CONSUMER_EXECUTOR_WAITING = "consumer." + HOSTNAME + ".executors." + EXECUTOR_NAME + ".waiting";
-
 }

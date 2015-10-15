@@ -8,11 +8,17 @@ import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.allegro.tech.hermes.api.Subscription;
+import pl.allegro.tech.hermes.api.SubscriptionName;
+import pl.allegro.tech.hermes.api.TopicName;
 import pl.allegro.tech.hermes.common.cache.zookeeper.StartableCache;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionCallback;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
+
+import static org.apache.commons.lang.StringUtils.substringAfterLast;
 
 class SubscriptionsNodeCache extends StartableCache<SubscriptionCallback> implements PathChildrenCacheListener {
 
@@ -65,4 +71,9 @@ class SubscriptionsNodeCache extends StartableCache<SubscriptionCallback> implem
         return objectMapper.readValue(event.getData().getData(), Subscription.class);
     }
 
+    public List<SubscriptionName> listSubscriptionNames(String group, String topic) {
+        return getCurrentData().stream()
+                .map(data -> new SubscriptionName(substringAfterLast(data.getPath(), "/"), new TopicName(group, topic)))
+                .collect(Collectors.toList());
+    }
 }

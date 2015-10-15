@@ -7,6 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 import pl.allegro.tech.hermes.api.Group;
 import pl.allegro.tech.hermes.api.Subscription;
+import pl.allegro.tech.hermes.api.SubscriptionName;
 import pl.allegro.tech.hermes.api.TopicName;
 import pl.allegro.tech.hermes.common.config.ConfigFactory;
 import pl.allegro.tech.hermes.domain.group.GroupRepository;
@@ -17,6 +18,8 @@ import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperPaths;
 import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperSubscriptionRepository;
 import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperTopicRepository;
 import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
+
+import java.util.List;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -93,6 +96,21 @@ public class ZookeeperSubscriptionsCacheTest extends ZookeeperBaseTest {
 
         // then
         assertThat(callback.getRemoveLatch().await(5000, MILLISECONDS)).isTrue();
+    }
+
+    @Test
+    public void shouldListAllSubscriptionNames() {
+        // given
+        TopicName topicName = createTopic("new.topic");
+        Subscription s = subscription().withTopicName(topicName).withName(SUB_NAME).build();
+        subscriptionRepository.createSubscription(s);
+        waitUntilSubscriptionIsCreated(topicName, SUB_NAME);
+
+        // when
+        List<SubscriptionName> names = subscriptionCache.listSubscriptionNames();
+
+        // then
+        assertThat(names).contains(s.toSubscriptionName());
     }
 
     private void waitUntilSubscriptionIsCreated(final TopicName topicName, final String subscriptionName) {

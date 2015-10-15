@@ -16,5 +16,9 @@ public class Gauges {
             PRODUCER_JMX_PREFIX = "producer." + HOSTNAME + ".jmx",
 
             CONSUMER_THREADS = "consumer." + HOSTNAME + ".threads",
-            CONSUMER_OUTPUT_RATE = "consumer." + HOSTNAME + ".output-rate." + GROUP + "." + TOPIC + "." + SUBSCRIPTION;
+            CONSUMER_OUTPUT_RATE = "consumer." + HOSTNAME + ".output-rate." + GROUP + "." + TOPIC + "." + SUBSCRIPTION,
+
+            CONSUMERS_WORKLOAD_SELECTIVE_MISSING_RESOURCES = "consumers-workload.selective.missing-resources",
+            CONSUMERS_WORKLOAD_SELECTIVE_DELETED_ASSIGNMENTS = "consumers-workload.selective.deleted-assignments",
+            CONSUMERS_WORKLOAD_SELECTIVE_CREATED_ASSIGNMENTS = "consumers-workload.selective.created-assignments";
 }
