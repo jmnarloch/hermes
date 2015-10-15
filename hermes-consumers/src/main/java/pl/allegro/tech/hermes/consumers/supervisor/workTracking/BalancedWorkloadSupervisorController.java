@@ -55,7 +55,7 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
         subscriptionsCache.start(ImmutableList.of(this));
         workTracker.start(ImmutableList.of(this));
         supervisor.start();
-        consumersRegistry.register(supervisorId);
+        consumersRegistry.register();
     }
 
     @Override
@@ -68,6 +68,6 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
     }
 
     public boolean isLeader() {
-        return false;
+        return consumersRegistry.isLeader();
     }
 }

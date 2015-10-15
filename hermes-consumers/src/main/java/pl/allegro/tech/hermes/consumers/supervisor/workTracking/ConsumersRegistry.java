@@ -1,6 +1,7 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
@@ -8,17 +9,22 @@ import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 public class ConsumersRegistry {
 
     private final CuratorFramework curatorClient;
+    private String supervisorId;
     private final String prefix;
+    private final LeaderLatch leaderLatch;
 
-    public ConsumersRegistry(CuratorFramework curatorClient, String prefix) {
+    public ConsumersRegistry(CuratorFramework curatorClient, String prefix, String supervisorId) {
         this.curatorClient = curatorClient;
+        this.supervisorId = supervisorId;
         this.prefix = prefix;
+        leaderLatch = new LeaderLatch(curatorClient, getLeaderPath());
     }
 
-    public void register(String supervisorId) {
+    public void register() {
         try {
             curatorClient.create().creatingParentsIfNeeded()
-                    .withMode(EPHEMERAL).forPath(getPath(supervisorId));
+                    .withMode(EPHEMERAL).forPath(getNodePath(supervisorId));
+            leaderLatch.start();
         } catch (Exception e) {
             throw new InternalProcessingException(e);
         }
@@ -26,13 +32,21 @@ public class ConsumersRegistry {
 
     public boolean isRegistered(String supervisorId) {
         try {
-            return curatorClient.checkExists().forPath(getPath(supervisorId)) != null;
+            return curatorClient.checkExists().forPath(getNodePath(supervisorId)) != null;
         } catch (Exception e) {
             throw new InternalProcessingException(e);
         }
     }
 
-    private String getPath(String supervisorId) {
-        return prefix + "/" + supervisorId;
+    private String getNodePath(String supervisorId) {
+        return prefix + "/nodes/" + supervisorId;
+    }
+
+    private String getLeaderPath() {
+        return prefix + "/leader";
+    }
+
+    public boolean isLeader() {
+        return leaderLatch.hasLeadership();
     }
 }

@@ -13,7 +13,6 @@ import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Stream;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.ONE_SECOND;
@@ -30,7 +29,7 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
 
     private static ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-    private static ConsumersRegistry consumersRegistry = new ConsumersRegistry(zookeeperClient, "/registry");
+    private static ConsumersRegistry consumersRegistry = new ConsumersRegistry(zookeeperClient, "/registry", "id");
 
 //    @BeforeClass
 //    public static void setup() throws Exception {
@@ -48,20 +47,17 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
         String id = "supervisor1";
 
         // when
-        getBalancedWorkloadSupervisorController(id, otherClient()).start();
+        getConsumerSupervisor(id).start();
 
         // then
-        await().atMost(ONE_SECOND).until(() -> consumersRegistry.isRegistered(id));
+        waitForRegistration(id);
     }
 
     @Test
     public void shouldElectOnlyOneLeaderFromRegisteredConsumers() {
         // given
         List<BalancedWorkloadSupervisorController> supervisors = ImmutableList.of(
-                getBalancedWorkloadSupervisorController("1", otherClient()),
-                getBalancedWorkloadSupervisorController("2", otherClient()),
-                getBalancedWorkloadSupervisorController("3", otherClient())
-        );
+                getConsumerSupervisor("1"), getConsumerSupervisor("2"), getConsumerSupervisor("3"));
 
         // when
         supervisors.forEach(this::startConsumer);
@@ -73,14 +69,19 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
     private void startConsumer(BalancedWorkloadSupervisorController supervisorController) {
         try {
             supervisorController.start();
-            await().atMost(ONE_SECOND).until(() -> consumersRegistry.isRegistered(supervisorController.getId()));
+            waitForRegistration(supervisorController.getId());
         } catch (Exception e) {
             throw new InternalProcessingException(e);
         }
     }
 
-    private static BalancedWorkloadSupervisorController getBalancedWorkloadSupervisorController(String id, CuratorFramework curator) {
+    private void waitForRegistration(String id) {
+        await().atMost(ONE_SECOND).until(() -> consumersRegistry.isRegistered(id));
+    }
+
+    private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id) {
+        CuratorFramework curator = otherClient();
         WorkTracker workTracker = new WorkTracker(curator, new ObjectMapper(), "/runtime", id, executorService, subscriptionsRepository);
-        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, new ConsumersRegistry(curator, "/registry"), id);
+        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, new ConsumersRegistry(curator, "/registry", id), id);
     }
 }
