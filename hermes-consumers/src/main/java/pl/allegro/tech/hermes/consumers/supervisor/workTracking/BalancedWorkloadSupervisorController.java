@@ -62,4 +62,12 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
     public void shutdown() throws InterruptedException {
         supervisor.shutdown();
     }
+
+    public String getId() {
+        return supervisorId;
+    }
+
+    public boolean isLeader() {
+        return false;
+    }
 }
