@@ -2,6 +2,8 @@ package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.jayway.awaitility.Duration;
 import org.apache.curator.framework.CuratorFramework;
 import org.junit.Test;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
@@ -11,8 +13,10 @@ import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.ONE_SECOND;
@@ -25,21 +29,9 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
     private static SubscriptionsCache subscriptionsCache = mock(SubscriptionsCache.class);
     private static SubscriptionRepository subscriptionsRepository = mock(SubscriptionRepository.class);
 
-//    private static List<BalancedWorkloadSupervisorController> controllers = new ArrayList<>();
-
     private static ExecutorService executorService = Executors.newSingleThreadExecutor();
 
     private static ConsumersRegistry consumersRegistry = new ConsumersRegistry(zookeeperClient, "/registry", "id");
-
-//    @BeforeClass
-//    public static void setup() throws Exception {
-//        int nConsumers = 3;
-//        for (int i = 0; i < nConsumers; i++) {
-//            BalancedWorkloadSupervisorController controller = runWithSupervisor("c" + i, i == 0 ? zookeeperClient : otherClient());
-//            controllers.add(controller);
-//            controller.start();
-//        }
-//    }
 
     @Test
     public void shouldRegisterConsumerOnStartup() throws Exception {
@@ -66,6 +58,34 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
         assertThat(supervisors.stream().filter(BalancedWorkloadSupervisorController::isLeader).count()).isEqualTo(1);
     }
 
+    @Test
+    public void shouldElectNewLeaderAfterShutdown() throws InterruptedException {
+        // given
+        Map<String, CuratorFramework> curators = ImmutableMap.of("A", otherClient(), "B", otherClient());
+        List<BalancedWorkloadSupervisorController> supervisors = curators.entrySet().stream()
+                .map(entry -> getConsumerSupervisor(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList());
+        supervisors.forEach(this::startConsumer);
+        BalancedWorkloadSupervisorController leader = findLeader(supervisors);
+
+        // when
+        curators.get(leader.getId()).close();
+        await().atMost(ONE_SECOND).until(() -> !consumersRegistry.isRegistered(leader.getId()));
+
+        // then
+        await().atMost(Duration.TEN_SECONDS).until(() -> supervisors.stream()
+                .filter(BalancedWorkloadSupervisorController::isLeader)
+                .filter(c -> !c.equals(leader))
+                .findAny().isPresent());
+
+        await().atMost(Duration.ONE_SECOND).until(() -> !leader.isLeader());
+    }
+
+    private BalancedWorkloadSupervisorController findLeader(List<BalancedWorkloadSupervisorController> supervisors) {
+        return supervisors.stream()
+                .filter(BalancedWorkloadSupervisorController::isLeader).findAny().get();
+    }
+
     private void startConsumer(BalancedWorkloadSupervisorController supervisorController) {
         try {
             supervisorController.start();
@@ -80,7 +100,10 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
     }
 
     private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id) {
-        CuratorFramework curator = otherClient();
+        return getConsumerSupervisor(id, otherClient());
+    }
+
+    private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id, CuratorFramework curator) {
         WorkTracker workTracker = new WorkTracker(curator, new ObjectMapper(), "/runtime", id, executorService, subscriptionsRepository);
         return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, new ConsumersRegistry(curator, "/registry", id), id);
     }

@@ -4,6 +4,8 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 
+import java.io.IOException;
+
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 
 public class ConsumersRegistry {
@@ -17,7 +19,14 @@ public class ConsumersRegistry {
         this.curatorClient = curatorClient;
         this.supervisorId = supervisorId;
         this.prefix = prefix;
-        leaderLatch = new LeaderLatch(curatorClient, getLeaderPath());
+        this.leaderLatch = new LeaderLatch(curatorClient, getLeaderPath());
+        curatorClient.getConnectionStateListenable().addListener((c, state) -> {
+            if (!state.isConnected()) {
+                try {
+                    leaderLatch.close();
+                } catch (IOException e) { /* wtf? */}
+            }
+        });
     }
 
     public void register() {
