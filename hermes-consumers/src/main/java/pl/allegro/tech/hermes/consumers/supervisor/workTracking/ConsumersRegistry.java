@@ -1,11 +1,8 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
-
-import java.io.IOException;
 
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 
@@ -50,6 +47,6 @@ public class ConsumersRegistry {
     }
 
     public boolean isLeader() {
-        return curatorClient.getState() == CuratorFrameworkState.STARTED && leaderLatch.hasLeadership();
+        return curatorClient.getZookeeperClient().isConnected() && leaderLatch.hasLeadership();
     }
 }
