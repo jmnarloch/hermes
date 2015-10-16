@@ -97,6 +97,39 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
         await().atMost(Duration.TEN_SECONDS).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test/c1") != null);
     }
 
+    @Test
+    public void shouldAssignSubscriptionToMultipleConsumers() {
+        List<BalancedWorkloadSupervisorController> supervisors = ImmutableList.of(
+                getConsumerSupervisor("d1"), getConsumerSupervisor("d2"));
+        supervisors.forEach(this::startConsumer);
+        Subscription subscription = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test"));
+
+        // when
+        supervisors.forEach(c -> c.onSubscriptionCreated(subscription));
+
+        // then
+        await().atMost(Duration.TEN_SECONDS).until(() ->
+                           zookeeperClient.checkExists().forPath("/runtime/example$test/d1") != null
+                        && zookeeperClient.checkExists().forPath("/runtime/example$test/d2") != null);
+    }
+
+    @Test
+    public void shouldNotExceedConsumerLimitWhenAssigningSubscriptions() {
+        // given
+        BalancedWorkloadSupervisorController controller = getConsumerSupervisor("c1");
+        startConsumer(controller);
+        Subscription subscription1 = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test1"));
+        Subscription subscription2 = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test2"));
+        controller.onSubscriptionCreated(subscription1);
+        await().atMost(Duration.ONE_SECOND).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test1/c1") != null);
+
+        // when
+        controller.onSubscriptionCreated(subscription2);
+
+        // then
+        await().atMost(Duration.ONE_SECOND).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test2/c1") != null);
+    }
+
     private BalancedWorkloadSupervisorController findLeader(List<BalancedWorkloadSupervisorController> supervisors) {
         return supervisors.stream()
                 .filter(BalancedWorkloadSupervisorController::isLeader).findAny().get();
