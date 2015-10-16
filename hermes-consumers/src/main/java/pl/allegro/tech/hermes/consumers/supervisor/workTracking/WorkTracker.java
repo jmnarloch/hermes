@@ -8,7 +8,9 @@ import pl.allegro.tech.hermes.common.cache.zookeeper.NodeCache;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 
@@ -16,7 +18,6 @@ public class WorkTracker extends NodeCache<SubscriptionAssignmentAware, Subscrip
     private final SubscriptionRepository subscriptionRepository;
     private final String supervisorId;
     private final SubscriptionAssignmentPathSerializer pathSerializer;
-
 
 public WorkTracker(CuratorFramework curatorClient,
                        ObjectMapper objectMapper,
@@ -48,6 +49,15 @@ public WorkTracker(CuratorFramework curatorClient,
         } catch (Exception ex) {
             throw new InternalProcessingException(ex);
         }
+    }
+
+    public void apply(SubscriptionAssignmentView work) {
+
+    }
+
+    public List<SubscriptionAssignment> getAssignments(Subscription subscription) {
+        return getEntry(subscription.toSubscriptionName().toString()).getCurrentData().stream()
+                .map(child -> pathSerializer.deserialize(child.getPath())).collect(Collectors.toList());
     }
 
     interface CuratorTask {

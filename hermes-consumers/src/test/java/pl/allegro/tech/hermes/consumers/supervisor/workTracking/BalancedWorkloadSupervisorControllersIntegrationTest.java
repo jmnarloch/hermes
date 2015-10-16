@@ -154,6 +154,6 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
 
     private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id, CuratorFramework curator) {
         WorkTracker workTracker = new WorkTracker(curator, new ObjectMapper(), "/runtime", id, executorService, subscriptionsRepository);
-        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, new ConsumersRegistry(curator, "/registry", id), id);
+        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, new ConsumersRegistry(curator, "/registry", id), new WorkBalancer(), id);
     }
 }

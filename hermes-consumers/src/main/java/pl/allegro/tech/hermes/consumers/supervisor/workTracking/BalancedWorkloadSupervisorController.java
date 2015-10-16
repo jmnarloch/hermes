@@ -12,22 +12,28 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
     private WorkTracker workTracker;
     private ConsumersRegistry consumersRegistry;
     private String supervisorId;
+    private WorkBalancer workBalancer;
 
     public BalancedWorkloadSupervisorController(ConsumersSupervisor supervisor,
                                                 SubscriptionsCache subscriptionsCache,
                                                 WorkTracker workTracker,
                                                 ConsumersRegistry consumersRegistry,
+                                                WorkBalancer workBalancer,
                                                 String supervisorId) {
         this.supervisor = supervisor;
         this.subscriptionsCache = subscriptionsCache;
         this.workTracker = workTracker;
         this.consumersRegistry = consumersRegistry;
         this.supervisorId = supervisorId;
+        this.workBalancer = workBalancer;
     }
 
     @Override
     public void onSubscriptionCreated(Subscription subscription) {
-
+        if (isLeader()) {
+            SubscriptionAssignmentView work = workBalancer.balance(subscription);
+            workTracker.apply(work);
+        }
     }
 
     @Override
