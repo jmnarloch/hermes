@@ -6,6 +6,8 @@ import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Duration;
 import org.apache.curator.framework.CuratorFramework;
 import org.junit.Test;
+import pl.allegro.tech.hermes.api.Subscription;
+import pl.allegro.tech.hermes.api.SubscriptionName;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionsCache;
 import pl.allegro.tech.hermes.consumers.supervisor.ConsumersSupervisor;
@@ -79,6 +81,20 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
                 .findAny().isPresent());
 
         await().atMost(Duration.ONE_SECOND).until(() -> !leader.isLeader());
+    }
+
+    @Test
+    public void shouldAssignConsumerToSubscription() {
+        // given
+        BalancedWorkloadSupervisorController controller = getConsumerSupervisor("c1");
+        startConsumer(controller);
+        Subscription subscription = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test"));
+
+        // when
+        controller.onSubscriptionCreated(subscription);
+
+        // then
+        await().atMost(Duration.TEN_SECONDS).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test/c1") != null);
     }
 
     private BalancedWorkloadSupervisorController findLeader(List<BalancedWorkloadSupervisorController> supervisors) {
