@@ -1,6 +1,7 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 
@@ -20,13 +21,6 @@ public class ConsumersRegistry {
         this.supervisorId = supervisorId;
         this.prefix = prefix;
         this.leaderLatch = new LeaderLatch(curatorClient, getLeaderPath());
-        curatorClient.getConnectionStateListenable().addListener((c, state) -> {
-            if (!state.isConnected()) {
-                try {
-                    leaderLatch.close();
-                } catch (IOException e) { /* wtf? */}
-            }
-        });
     }
 
     public void register() {
@@ -56,6 +50,6 @@ public class ConsumersRegistry {
     }
 
     public boolean isLeader() {
-        return leaderLatch.hasLeadership();
+        return curatorClient.getState() == CuratorFrameworkState.STARTED && leaderLatch.hasLeadership();
     }
 }
