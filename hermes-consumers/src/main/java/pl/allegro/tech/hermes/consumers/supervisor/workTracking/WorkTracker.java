@@ -60,6 +60,10 @@ public WorkTracker(CuratorFramework curatorClient,
                 .map(child -> pathSerializer.deserialize(child.getPath())).collect(Collectors.toList());
     }
 
+    public SubscriptionAssignmentView getAssignments() {
+        return new SubscriptionAssignmentView();
+    }
+
     interface CuratorTask {
         void run() throws Exception;
     }

@@ -45,11 +45,36 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         Subscription sub = anySubscription();
 
         // when
-        workTracker.forceAssignment(sub);
-        wait.untilZookeeperPathIsCreated(basePath + "/" + sub.toSubscriptionName() + "/" + supervisorId );
+        forceAssignment(sub);
 
         // then
         assertThat(workTracker.getAssignments(sub)).extracting(SubscriptionAssignment::getSupervisorId).contains(supervisorId);
+    }
+
+    @Test
+    public void shouldDropAssignment() {
+        // given
+        Subscription sub = forceAssignment(anySubscription());
+
+        // when
+        workTracker.dropAssignment(sub);
+        wait.untilZookeeperPathIsEmpty(basePath + "/" + sub.toSubscriptionName());
+
+        // then
+        assertThat(workTracker.getAssignments(sub)).extracting(SubscriptionAssignment::getSupervisorId).doesNotContain(supervisorId);
+    }
+
+    @Test
+    public void shouldReturnAllAssignments() {
+        // given
+        Subscription s1 = forceAssignment(anySubscription());
+        Subscription s2 = forceAssignment(anySubscription());
+
+        // when
+        SubscriptionAssignmentView assignments = workTracker.getAssignments();
+
+        // then
+        assertThat(assignments.getSubscriptionSet()).containsOnly(s1.toSubscriptionName(), s2.toSubscriptionName());
     }
 
     private Subscription anySubscription() {
@@ -57,6 +82,12 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         Subscription subscription = Subscription.fromSubscriptionName(name);
         given(subscriptionRepository.getSubscriptionDetails(name)).willReturn(subscription);
         return subscription;
+    }
+
+    private Subscription forceAssignment(Subscription sub) {
+        workTracker.forceAssignment(sub);
+        wait.untilZookeeperPathIsCreated(basePath + "/" + sub.toSubscriptionName() + "/" + supervisorId);
+        return sub;
     }
 
 }
