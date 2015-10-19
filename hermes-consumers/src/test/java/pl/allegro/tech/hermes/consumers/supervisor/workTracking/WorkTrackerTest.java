@@ -83,7 +83,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
     public void shouldApplyAssignmentChangesCreatingNewNodesInZookeeper() {
         // given
         Subscription s1 = anySubscription();
-        SubscriptionAssignmentView view = new SubscriptionAssignmentView(ImmutableMap.of(s1.toSubscriptionName(), ImmutableSet.of(new SubscriptionAssignment(supervisorId, s1.toSubscriptionName()))));
+        SubscriptionAssignmentView view = new SubscriptionAssignmentView(ImmutableMap.of(s1.toSubscriptionName(), ImmutableSet.of(assignment(supervisorId, s1.toSubscriptionName()))));
 
         // when
         workTracker.apply(view);
@@ -93,7 +93,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
     }
 
     @Test
-    public void shouldApplyAssignmentChangesRemovingInvalidNodesFromZookeeper() {
+    public void shouldApplyAssignmentChangesByRemovingInvalidNodes() {
         // given
         Subscription s1 = forceAssignment(anySubscription());
 
@@ -102,6 +102,29 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
 
         // then
         wait.untilZookeeperPathNotExists(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
+    }
+
+    @Test
+    public void shouldApplyAssignmentChangesByAddingNewNodes() {
+        // given
+        Subscription s1 = forceAssignment(anySubscription());
+        Subscription s2 = forceAssignment(anySubscription());
+        SubscriptionAssignmentView view = new SubscriptionAssignmentView(
+                ImmutableMap.of(
+                        s1.toSubscriptionName(), ImmutableSet.of(assignment(supervisorId, s1.toSubscriptionName()), assignment("otherConsumer", s1.toSubscriptionName())),
+                        s2.toSubscriptionName(), ImmutableSet.of(assignment(supervisorId, s2.toSubscriptionName()))));
+
+        // when
+        workTracker.apply(view);
+
+        // then
+        wait.untilZookeeperPathIsCreated(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
+        wait.untilZookeeperPathIsCreated(basePath + "/" + s1.toSubscriptionName() + "/" + "otherConsumer");
+        wait.untilZookeeperPathIsCreated(basePath + "/" + s2.toSubscriptionName() + "/" + supervisorId);
+    }
+
+    private SubscriptionAssignment assignment(String supervisorId, SubscriptionName subscriptionName) {
+        return new SubscriptionAssignment(supervisorId, subscriptionName);
     }
 
     private Subscription anySubscription() {
