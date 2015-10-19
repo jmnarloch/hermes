@@ -11,11 +11,10 @@ import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toMap;
-import static org.apache.zookeeper.CreateMode.EPHEMERAL;
+import static org.apache.zookeeper.CreateMode.PERSISTENT;
 
 public class WorkTracker extends NodeCache<SubscriptionAssignmentAware, SubscriptionAssignmentRegistry> {
     private final SubscriptionRepository subscriptionRepository;
@@ -31,17 +30,15 @@ public WorkTracker(CuratorFramework curatorClient,
         super(curatorClient, objectMapper, path, executorService);
         this.subscriptionRepository = subscriptionRepository;
         this.supervisorId = supervisorId;
-        this.pathSerializer = new SubscriptionAssignmentPathSerializer(path, supervisorId);
+        this.pathSerializer = new SubscriptionAssignmentPathSerializer(path);
     }
 
     public void forceAssignment(Subscription subscription) {
-        askCuratorPolitely(() ->
-                curatorClient.create().creatingParentsIfNeeded().withMode(EPHEMERAL).forPath(pathSerializer.serialize(subscription)));
+        addAssignment(subscription.toSubscriptionName(), supervisorId);
     }
 
     public void dropAssignment(Subscription subscription) {
-        askCuratorPolitely(() ->
-                curatorClient.delete().guaranteed().forPath(pathSerializer.serialize(subscription)));
+        dropAssignment(subscription.toSubscriptionName(), supervisorId);
     }
 
     private void askCuratorPolitely(CuratorTask task) {
@@ -54,8 +51,28 @@ public WorkTracker(CuratorFramework curatorClient,
         }
     }
 
-    public void apply(SubscriptionAssignmentView work) {
+    public void apply(SubscriptionAssignmentView targetView) {
+        SubscriptionAssignmentView currentView = getAssignments();
+        SubscriptionAssignmentView deletions = currentView.deletions(targetView);
+        for (SubscriptionName subscriptionName : currentView.deletions(targetView).getSubscriptionSet()) {
+            for (SubscriptionAssignment assignment : deletions.getAssignments(subscriptionName)) {
+                dropAssignment(subscriptionName, assignment.getSupervisorId());
+            }
+        }
+        SubscriptionAssignmentView additions = currentView.additions(targetView);
+        for (SubscriptionName subscription : currentView.additions(targetView).getSubscriptionSet()) {
+            for (SubscriptionAssignment assignment : additions.getAssignments(subscription)) {
+                addAssignment(subscription, assignment.getSupervisorId());
+            }
+        }
+     }
 
+    private void addAssignment(SubscriptionName subscriptionName, String supervisorId) {
+        askCuratorPolitely(() -> curatorClient.create().creatingParentsIfNeeded().withMode(PERSISTENT).forPath(pathSerializer.serialize(subscriptionName, supervisorId)));
+    }
+
+    private void dropAssignment(SubscriptionName subscriptionName, String supervisorId) {
+        askCuratorPolitely(() -> curatorClient.delete().guaranteed().forPath(pathSerializer.serialize(subscriptionName, supervisorId)));
     }
 
     public Set<SubscriptionAssignment> getAssignments(Subscription subscription) {

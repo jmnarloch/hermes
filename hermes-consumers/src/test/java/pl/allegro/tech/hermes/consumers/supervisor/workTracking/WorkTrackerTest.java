@@ -1,6 +1,8 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -10,9 +12,7 @@ import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -77,6 +77,31 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         assertThat(assignments.getSubscriptionSet()).containsOnly(s1.toSubscriptionName(), s2.toSubscriptionName());
         assertThatCollectionContainsSupervisorId(assignments.getAssignments(s1.toSubscriptionName()), supervisorId);
         assertThatCollectionContainsSupervisorId(assignments.getAssignments(s2.toSubscriptionName()), supervisorId);
+    }
+
+    @Test
+    public void shouldApplyAssignmentChangesCreatingNewNodesInZookeeper() {
+        // given
+        Subscription s1 = anySubscription();
+        SubscriptionAssignmentView view = new SubscriptionAssignmentView(ImmutableMap.of(s1.toSubscriptionName(), ImmutableSet.of(new SubscriptionAssignment(supervisorId, s1.toSubscriptionName()))));
+
+        // when
+        workTracker.apply(view);
+
+        // then
+        wait.untilZookeeperPathIsCreated(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
+    }
+
+    @Test
+    public void shouldApplyAssignmentChangesRemovingInvalidNodesFromZookeeper() {
+        // given
+        Subscription s1 = forceAssignment(anySubscription());
+
+        // when
+        workTracker.apply(new SubscriptionAssignmentView(Collections.emptyMap()));
+
+        // then
+        wait.untilZookeeperPathNotExists(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
     }
 
     private Subscription anySubscription() {
