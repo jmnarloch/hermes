@@ -11,6 +11,7 @@ import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,7 +31,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
 
     @BeforeClass
     public static void before() throws Exception {
-        workTracker.start();
+        workTracker.start(new ArrayList<>());
     }
 
     @AfterClass
