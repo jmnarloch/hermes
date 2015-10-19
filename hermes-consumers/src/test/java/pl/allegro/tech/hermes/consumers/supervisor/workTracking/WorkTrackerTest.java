@@ -2,7 +2,6 @@ package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.AfterClass;
-import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import pl.allegro.tech.hermes.api.Subscription;
@@ -12,6 +11,7 @@ import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,7 +48,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         forceAssignment(sub);
 
         // then
-        assertThat(workTracker.getAssignments(sub)).extracting(SubscriptionAssignment::getSupervisorId).contains(supervisorId);
+        assertThatCollectionContainsSupervisorId(workTracker.getAssignments(sub), supervisorId);
     }
 
     @Test
@@ -75,6 +75,8 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
 
         // then
         assertThat(assignments.getSubscriptionSet()).containsOnly(s1.toSubscriptionName(), s2.toSubscriptionName());
+        assertThatCollectionContainsSupervisorId(assignments.getAssignments(s1.toSubscriptionName()), supervisorId);
+        assertThatCollectionContainsSupervisorId(assignments.getAssignments(s2.toSubscriptionName()), supervisorId);
     }
 
     private Subscription anySubscription() {
@@ -88,6 +90,10 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         workTracker.forceAssignment(sub);
         wait.untilZookeeperPathIsCreated(basePath + "/" + sub.toSubscriptionName() + "/" + supervisorId);
         return sub;
+    }
+
+    private void assertThatCollectionContainsSupervisorId(Collection<SubscriptionAssignment> assignments, String supervisorId) {
+        assertThat(assignments).extracting(SubscriptionAssignment::getSupervisorId).contains(supervisorId);
     }
 
 }

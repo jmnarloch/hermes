@@ -4,14 +4,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.zookeeper.KeeperException;
 import pl.allegro.tech.hermes.api.Subscription;
+import pl.allegro.tech.hermes.api.SubscriptionName;
 import pl.allegro.tech.hermes.common.cache.zookeeper.NodeCache;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 
-import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toMap;
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 
 public class WorkTracker extends NodeCache<SubscriptionAssignmentAware, SubscriptionAssignmentRegistry> {
@@ -55,13 +58,17 @@ public WorkTracker(CuratorFramework curatorClient,
 
     }
 
-    public List<SubscriptionAssignment> getAssignments(Subscription subscription) {
-        return getEntry(subscription.toSubscriptionName().toString()).getCurrentData().stream()
-                .map(child -> pathSerializer.deserialize(child.getPath())).collect(Collectors.toList());
+    public Set<SubscriptionAssignment> getAssignments(Subscription subscription) {
+        return getAssignments(subscription.toSubscriptionName().toString());
+    }
+
+    private Set<SubscriptionAssignment> getAssignments(String subscriptionName) {
+        return getEntry(subscriptionName).getCurrentData().stream()
+                .map(child -> pathSerializer.deserialize(child.getPath())).collect(Collectors.toSet());
     }
 
     public SubscriptionAssignmentView getAssignments() {
-        return new SubscriptionAssignmentView();
+        return new SubscriptionAssignmentView(getSubcacheKeySet().stream().collect(toMap(SubscriptionName::fromString, this::getAssignments)));
     }
 
     interface CuratorTask {
