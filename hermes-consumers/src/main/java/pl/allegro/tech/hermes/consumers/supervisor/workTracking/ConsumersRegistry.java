@@ -2,21 +2,25 @@ package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
+import pl.allegro.tech.hermes.common.cache.zookeeper.StartableCache;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang.StringUtils.substringAfterLast;
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 
-public class ConsumersRegistry {
+public class ConsumersRegistry extends StartableCache {
 
     private final CuratorFramework curatorClient;
     private String supervisorId;
     private final String prefix;
     private final LeaderLatch leaderLatch;
 
-    public ConsumersRegistry(CuratorFramework curatorClient, String prefix, String supervisorId) {
+    public ConsumersRegistry(CuratorFramework curatorClient, ExecutorService executorService, String prefix, String supervisorId) {
+        super(curatorClient, getNodesPath(prefix), executorService);
         this.curatorClient = curatorClient;
         this.supervisorId = supervisorId;
         this.prefix = prefix;
@@ -42,7 +46,11 @@ public class ConsumersRegistry {
     }
 
     private String getNodePath(String supervisorId) {
-        return prefix + "/nodes/" + supervisorId;
+        return getNodesPath(prefix) + "/" + supervisorId;
+    }
+
+    private static String getNodesPath(String prefix) {
+        return prefix + "/nodes";
     }
 
     private String getLeaderPath() {
@@ -54,6 +62,6 @@ public class ConsumersRegistry {
     }
 
     public List<String> list() {
-        return new ArrayList<>();
+        return getCurrentData().stream().map(data -> substringAfterLast(data.getPath(), "/")).collect(toList());
     }
 }

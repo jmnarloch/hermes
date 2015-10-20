@@ -65,6 +65,7 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
         subscriptionsCache.start(ImmutableList.of(this));
         workTracker.start(ImmutableList.of(this));
         supervisor.start();
+        consumersRegistry.start();
         consumersRegistry.register();
     }
 

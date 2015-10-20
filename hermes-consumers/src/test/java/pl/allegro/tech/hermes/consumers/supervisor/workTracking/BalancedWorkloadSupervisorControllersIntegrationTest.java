@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Duration;
 import org.apache.curator.framework.CuratorFramework;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import pl.allegro.tech.hermes.api.Subscription;
 import pl.allegro.tech.hermes.api.SubscriptionName;
@@ -33,7 +34,12 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
 
     private static ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-    private static ConsumersRegistry consumersRegistry = new ConsumersRegistry(zookeeperClient, "/registry", "id");
+    private static ConsumersRegistry consumersRegistry = new ConsumersRegistry(zookeeperClient, executorService, "/registry", "id");
+
+    @BeforeClass
+    public static void before() throws Exception {
+        consumersRegistry.start();
+    }
 
     @Test
     public void shouldRegisterConsumerOnStartup() throws Exception {
@@ -154,6 +160,7 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
 
     private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id, CuratorFramework curator) {
         WorkTracker workTracker = new WorkTracker(curator, new ObjectMapper(), "/runtime", id, executorService, subscriptionsRepository);
-        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, new ConsumersRegistry(curator, "/registry", id), new WorkBalancer(), id);
+        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker,
+                new ConsumersRegistry(curator, executorService, "/registry", id), new WorkBalancer(), id);
     }
 }
