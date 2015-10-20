@@ -1,13 +1,15 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
-import pl.allegro.tech.hermes.api.Subscription;
+import pl.allegro.tech.hermes.api.SubscriptionName;
+
+import java.util.List;
 
 public class WorkBalancer {
-    public void balanceIfNecessary(Subscription subscription) {
 
-    }
+    public SubscriptionAssignmentView balance(List<SubscriptionName> subscriptions,
+                                              List<String> supervisors,
+                                              SubscriptionAssignmentView currentState) {
 
-    public SubscriptionAssignmentView balance(Subscription subscription) {
-        return null;
+        return currentState;
     }
 }

@@ -2,10 +2,13 @@ package pl.allegro.tech.hermes.consumers.subscription.cache.zookeeper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.curator.framework.CuratorFramework;
+import pl.allegro.tech.hermes.api.SubscriptionName;
 import pl.allegro.tech.hermes.common.cache.zookeeper.NodeCache;
 import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperPaths;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionCallback;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 class GroupsNodeCache extends NodeCache<SubscriptionCallback, TopicsNodeCache> {
@@ -23,4 +26,7 @@ class GroupsNodeCache extends NodeCache<SubscriptionCallback, TopicsNodeCache> {
         return path + "/" + ZookeeperPaths.TOPICS_PATH;
     }
 
+    public List<SubscriptionName> listSubscriptionNames() {
+        return new ArrayList<>();
+    }
 }

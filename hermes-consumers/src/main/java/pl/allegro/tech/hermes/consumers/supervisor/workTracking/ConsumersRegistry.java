@@ -4,6 +4,9 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.apache.zookeeper.CreateMode.EPHEMERAL;
 
 public class ConsumersRegistry {
@@ -48,5 +51,9 @@ public class ConsumersRegistry {
 
     public boolean isLeader() {
         return curatorClient.getZookeeperClient().isConnected() && leaderLatch.hasLeadership();
+    }
+
+    public List<String> list() {
+        return new ArrayList<>();
     }
 }

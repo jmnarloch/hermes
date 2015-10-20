@@ -6,6 +6,8 @@ import pl.allegro.tech.hermes.api.SubscriptionName;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionsCache;
 import pl.allegro.tech.hermes.consumers.supervisor.ConsumersSupervisor;
 
+import java.util.List;
+
 public class BalancedWorkloadSupervisorController implements SupervisorController {
     private ConsumersSupervisor supervisor;
     private SubscriptionsCache subscriptionsCache;
@@ -31,7 +33,9 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
     @Override
     public void onSubscriptionCreated(Subscription subscription) {
         if (isLeader()) {
-            SubscriptionAssignmentView work = workBalancer.balance(subscription);
+            List<SubscriptionName> subscriptions = subscriptionsCache.listSubscriptionNames();
+            List<String> supervisors = consumersRegistry.list();
+            SubscriptionAssignmentView work = workBalancer.balance(subscriptions, supervisors, workTracker.getAssignments());
             workTracker.apply(work);
         }
     }
