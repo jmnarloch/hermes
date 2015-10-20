@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -21,7 +22,7 @@ public class SubscriptionAssignmentView {
     }
 
     public Set<SubscriptionAssignment> getAssignments(SubscriptionName subscriptionName) {
-        return view.get(subscriptionName);
+        return Collections.unmodifiableSet(view.get(subscriptionName));
     }
 
     public SubscriptionAssignmentView deletions(SubscriptionAssignmentView target) {

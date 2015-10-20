@@ -10,6 +10,10 @@ public class WorkBalancer {
                                               List<String> supervisors,
                                               SubscriptionAssignmentView currentState) {
 
-        return currentState;
+        MutableWorkloadView workload = new MutableWorkloadView(currentState);
+        workload.removeInvalidSubscriptions(subscriptions);
+        workload.removeInvalidSupervisors(supervisors);
+
+        return workload.asSubscriptionAssignmentView();
     }
 }
