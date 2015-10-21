@@ -125,4 +125,8 @@ public abstract class NodeCache<O, C extends StartableCache<O>> extends Startabl
     protected Set<String> getSubcacheKeySet() {
         return subcacheMap.keySet();
     }
+
+    protected Set<Map.Entry<String, C>> getSubcacheEntrySet() {
+        return new HashedMap<>(subcacheMap).entrySet();
+    }
 }

@@ -7,9 +7,9 @@ import pl.allegro.tech.hermes.common.cache.zookeeper.NodeCache;
 import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperPaths;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionCallback;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 class GroupsNodeCache extends NodeCache<SubscriptionCallback, TopicsNodeCache> {
 
@@ -27,6 +27,9 @@ class GroupsNodeCache extends NodeCache<SubscriptionCallback, TopicsNodeCache> {
     }
 
     public List<SubscriptionName> listSubscriptionNames() {
-        return new ArrayList<>();
+        return getSubcacheEntrySet().stream()
+                .map(entry -> entry.getValue().listSubscriptionNames(entry.getKey()))
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
     }
 }
