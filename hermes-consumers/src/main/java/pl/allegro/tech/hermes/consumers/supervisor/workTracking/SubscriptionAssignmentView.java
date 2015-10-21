@@ -4,11 +4,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 public class SubscriptionAssignmentView {
     private Map<SubscriptionName, Set<SubscriptionAssignment>> view;
@@ -60,5 +59,12 @@ public class SubscriptionAssignmentView {
     @Override
     public int hashCode() {
         return Objects.hash(view);
+    }
+
+    public List<SubscriptionAssignment> getAssignmentsFor(String supervisorId) {
+        return view.values().stream()
+                .flatMap(Set::stream)
+                .filter(assignment -> assignment.getSupervisorId().equals(supervisorId))
+                .collect(toList());
     }
 }

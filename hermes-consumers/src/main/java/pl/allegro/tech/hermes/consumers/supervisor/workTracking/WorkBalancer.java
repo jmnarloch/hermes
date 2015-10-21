@@ -11,8 +11,16 @@ public class WorkBalancer {
                                               SubscriptionAssignmentView currentState) {
 
         MutableWorkloadView workload = new MutableWorkloadView(currentState);
+
         workload.removeInvalidSubscriptions(subscriptions);
         workload.removeInvalidSupervisors(supervisors);
+
+        workload.addNewSubscriptions(subscriptions);
+        workload.addNewSupervisors(supervisors);
+
+        workload.assignSupervisors();
+
+//        workload.rebalance all the things ?
 
         return workload.asSubscriptionAssignmentView();
     }

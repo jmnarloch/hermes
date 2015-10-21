@@ -7,9 +7,12 @@ import org.junit.Test;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.Collections;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyMap;
+import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class WorkBalancerTest {
@@ -55,7 +58,55 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
 
         // then
-        assertThat(view.getAssignments(subscription)).extracting(SubscriptionAssignment::getSupervisorId).isEqualTo("c1");
+        assertThat(view.getAssignments(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
+    }
+
+    @Test
+    public void shouldBalanceWorkForMultipleConsumersAndSingleSubscription() {
+        // given
+        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
+        SubscriptionName subscription = anySubscription();
+        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(subscription);
+
+        // when
+        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+
+        // then
+        assertThat(view.getAssignments(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+    }
+
+    @Test
+    public void shouldBalanceWorkForMultipleConsumersAndMultipleSubscriptions() {
+        // given
+        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
+        SubscriptionName s1 = anySubscription();
+        SubscriptionName s2 = anySubscription();
+        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2);
+
+        // when
+        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+
+        // then
+        assertThat(view.getAssignments(s1)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+        assertThat(view.getAssignments(s2)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+    }
+
+    @Test
+    public void shouldNotOverloadConsumers() {
+        // given
+        ImmutableList<String> supervisors = ImmutableList.of("c1");
+        SubscriptionName s1 = anySubscription();
+        SubscriptionName s2 = anySubscription();
+        SubscriptionName s3 = anySubscription();
+        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2, s3);
+
+        /* with a maximum of 2 subscriptions per consumer */
+
+        // when
+        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+
+        // then
+        assertThat(view.getAssignmentsFor("c1")).hasSize(2);
     }
 
     private SubscriptionAssignment assignment(SubscriptionName s1, String supervisorId) {
