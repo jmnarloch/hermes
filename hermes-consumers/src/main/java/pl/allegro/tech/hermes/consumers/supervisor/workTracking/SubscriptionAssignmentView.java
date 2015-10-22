@@ -59,6 +59,30 @@ public class SubscriptionAssignmentView {
         return Collections.unmodifiableSet(supervisorAssignments.get(supervisorId));
     }
 
+    public void removeSubscription(SubscriptionName subscription) {
+        supervisorAssignments.values().stream().forEach(assignments -> assignments.removeIf(assignment -> assignment.getSubscriptionName().equals(subscription)));
+        subscriptionAssignments.remove(subscription);
+    }
+
+    public void removeSupervisor(String supervisorId) {
+        subscriptionAssignments.values().stream().forEach(assignments -> assignments.removeIf(assignment -> assignment.getSupervisorId().equals(supervisorId)));
+        supervisorAssignments.remove(supervisorId);
+    }
+
+    public void addSubscription(SubscriptionName subscriptionName) {
+        subscriptionAssignments.putIfAbsent(subscriptionName, new HashSet<>());
+    }
+
+    public void addSupervisor(String supervisorId) {
+        supervisorAssignments.putIfAbsent(supervisorId, new HashSet<>());
+    }
+
+    public void addAssignment(SubscriptionName subscriptionName, String supervisorId) {
+        SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
+        subscriptionAssignments.get(subscriptionName).add(assignment);
+        supervisorAssignments.get(supervisorId).add(assignment);
+    }
+
     public SubscriptionAssignmentView deletions(SubscriptionAssignmentView target) {
         return difference(this, target);
     }
@@ -84,11 +108,12 @@ public class SubscriptionAssignmentView {
     }
 
     public static SubscriptionAssignmentView copyOf(SubscriptionAssignmentView currentState) {
-        return new SubscriptionAssignmentView(currentState.asMap());
+        return new SubscriptionAssignmentView(currentState.subscriptionAssignments);
     }
 
-    private Map<SubscriptionName, Set<SubscriptionAssignment>> asMap() {
-        return subscriptionAssignments;
+    @Override
+    public int hashCode() {
+        return Objects.hash(subscriptionAssignments);
     }
 
     @Override
@@ -97,34 +122,5 @@ public class SubscriptionAssignmentView {
         if (o == null || getClass() != o.getClass()) return false;
         SubscriptionAssignmentView that = (SubscriptionAssignmentView) o;
         return Objects.equals(subscriptionAssignments, that.subscriptionAssignments);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(subscriptionAssignments);
-    }
-
-    public void removeSubscription(SubscriptionName subscription) {
-        supervisorAssignments.values().stream().forEach(assignments -> assignments.removeIf(assignment -> assignment.getSubscriptionName().equals(subscription)));
-        subscriptionAssignments.remove(subscription);
-    }
-
-    public void removeSupervisor(String supervisorId) {
-        subscriptionAssignments.values().stream().forEach(assignments -> assignments.removeIf(assignment -> assignment.getSupervisorId().equals(supervisorId)));
-        supervisorAssignments.remove(supervisorId);
-    }
-
-    public void addSubscription(SubscriptionName subscriptionName) {
-        subscriptionAssignments.putIfAbsent(subscriptionName, new HashSet<>());
-    }
-
-    public void addSupervisor(String supervisorId) {
-        supervisorAssignments.putIfAbsent(supervisorId, new HashSet<>());
-    }
-
-    public void addAssignment(SubscriptionName subscriptionName, String supervisorId) {
-        SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
-        subscriptionAssignments.get(subscriptionName).add(assignment);
-        supervisorAssignments.get(supervisorId).add(assignment);
     }
 }
