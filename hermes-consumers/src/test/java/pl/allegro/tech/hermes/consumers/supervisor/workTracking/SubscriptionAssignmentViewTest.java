@@ -24,7 +24,7 @@ public class SubscriptionAssignmentViewTest {
         SubscriptionAssignmentView deletions = current.deletions(target);
 
         // then
-        assertThat(deletions.getSubscriptionSet()).isEmpty();
+        assertThat(deletions.getSubscriptions()).isEmpty();
     }
 
     @Test
@@ -52,7 +52,7 @@ public class SubscriptionAssignmentViewTest {
         SubscriptionAssignmentView additions = current.additions(target);
 
         // then
-        assertThat(additions.getSubscriptionSet()).isEmpty();
+        assertThat(additions.getSubscriptions()).isEmpty();
     }
 
     @Test
@@ -66,7 +66,7 @@ public class SubscriptionAssignmentViewTest {
         SubscriptionAssignmentView deletions = current.deletions(target);
 
         // then
-        assertThat(deletions.getSubscriptionSet()).isEmpty();
+        assertThat(deletions.getSubscriptions()).isEmpty();
     }
 
     @Test
@@ -80,7 +80,7 @@ public class SubscriptionAssignmentViewTest {
         SubscriptionAssignmentView additions = current.additions(target);
 
         // then
-        assertThat(additions.getAssignments(s1)).containsOnly(assignment(s1, "c2"));
+        assertThat(additions.getAssignmentsForSubscription(s1)).containsOnly(assignment(s1, "c2"));
     }
 
     @Test
@@ -95,8 +95,8 @@ public class SubscriptionAssignmentViewTest {
         SubscriptionAssignmentView additions = current.additions(target);
 
         // then
-        assertThat(additions.getSubscriptionSet()).containsOnly(s2);
-        assertThat(additions.getAssignments(s2)).containsOnly(assignment(s2, "c1"));
+        assertThat(additions.getSubscriptions()).containsOnly(s2);
+        assertThat(additions.getAssignmentsForSubscription(s2)).containsOnly(assignment(s2, "c1"));
     }
 
     @Test
@@ -110,8 +110,8 @@ public class SubscriptionAssignmentViewTest {
         SubscriptionAssignmentView deletions = current.deletions(target);
 
         // then
-        assertThat(deletions.getSubscriptionSet()).isEqualTo(current.getSubscriptionSet());
-        assertThat(deletions.getAssignments(s1)).isEqualTo(current.getAssignments(s1));
+        assertThat(deletions.getSubscriptions()).isEqualTo(current.getSubscriptions());
+        assertThat(deletions.getAssignmentsForSubscription(s1)).isEqualTo(current.getAssignmentsForSubscription(s1));
     }
 
     private SubscriptionAssignmentView subscriptionAssignmentView(SubscriptionName s1, Set<SubscriptionAssignment> assignments) {

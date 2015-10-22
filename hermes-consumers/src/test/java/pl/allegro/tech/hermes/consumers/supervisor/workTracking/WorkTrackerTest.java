@@ -74,9 +74,9 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         SubscriptionAssignmentView assignments = workTracker.getAssignments();
 
         // then
-        assertThat(assignments.getSubscriptionSet()).containsOnly(s1.toSubscriptionName(), s2.toSubscriptionName());
-        assertThatCollectionContainsSupervisorId(assignments.getAssignments(s1.toSubscriptionName()), supervisorId);
-        assertThatCollectionContainsSupervisorId(assignments.getAssignments(s2.toSubscriptionName()), supervisorId);
+        assertThat(assignments.getSubscriptions()).containsOnly(s1.toSubscriptionName(), s2.toSubscriptionName());
+        assertThatCollectionContainsSupervisorId(assignments.getAssignmentsForSubscription(s1.toSubscriptionName()), supervisorId);
+        assertThatCollectionContainsSupervisorId(assignments.getAssignmentsForSubscription(s2.toSubscriptionName()), supervisorId);
     }
 
     @Test

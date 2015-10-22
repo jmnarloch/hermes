@@ -7,12 +7,9 @@ import org.junit.Test;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.Collections;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyMap;
-import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class WorkBalancerTest {
@@ -29,7 +26,7 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView target = workBalancer.balance(Collections.emptyList(), Collections.emptyList(), currentState);
 
         // then
-        assertThat(target.getSubscriptionSet()).isEmpty();
+        assertThat(target.getSubscriptions()).isEmpty();
     }
 
     @Test
@@ -44,7 +41,7 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, currentState);
 
         // then
-        assertThat(view.getAssignments(s)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
+        assertThat(view.getAssignmentsForSubscription(s)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
     }
 
     @Test
@@ -58,7 +55,7 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
 
         // then
-        assertThat(view.getAssignments(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
+        assertThat(view.getAssignmentsForSubscription(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
     }
 
     @Test
@@ -72,7 +69,7 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
 
         // then
-        assertThat(view.getAssignments(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+        assertThat(view.getAssignmentsForSubscription(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
     }
 
     @Test
@@ -87,8 +84,8 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
 
         // then
-        assertThat(view.getAssignments(s1)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
-        assertThat(view.getAssignments(s2)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+        assertThat(view.getAssignmentsForSubscription(s1)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+        assertThat(view.getAssignmentsForSubscription(s2)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
     }
 
     @Test
@@ -106,7 +103,7 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
 
         // then
-        assertThat(view.getAssignmentsFor("c1")).hasSize(2);
+        assertThat(view.getAssignmentsForSupervisor("c1")).hasSize(2);
     }
 
     private SubscriptionAssignment assignment(SubscriptionName s1, String supervisorId) {

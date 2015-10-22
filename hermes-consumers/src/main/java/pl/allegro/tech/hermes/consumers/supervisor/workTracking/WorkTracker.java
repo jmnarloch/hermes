@@ -54,14 +54,14 @@ public WorkTracker(CuratorFramework curatorClient,
     public void apply(SubscriptionAssignmentView targetView) {
         SubscriptionAssignmentView currentView = getAssignments();
         SubscriptionAssignmentView deletions = currentView.deletions(targetView);
-        for (SubscriptionName subscriptionName : currentView.deletions(targetView).getSubscriptionSet()) {
-            for (SubscriptionAssignment assignment : deletions.getAssignments(subscriptionName)) {
+        for (SubscriptionName subscriptionName : currentView.deletions(targetView).getSubscriptions()) {
+            for (SubscriptionAssignment assignment : deletions.getAssignmentsForSubscription(subscriptionName)) {
                 dropAssignment(subscriptionName, assignment.getSupervisorId());
             }
         }
         SubscriptionAssignmentView additions = currentView.additions(targetView);
-        for (SubscriptionName subscription : currentView.additions(targetView).getSubscriptionSet()) {
-            for (SubscriptionAssignment assignment : additions.getAssignments(subscription)) {
+        for (SubscriptionName subscription : currentView.additions(targetView).getSubscriptions()) {
+            for (SubscriptionAssignment assignment : additions.getAssignmentsForSubscription(subscription)) {
                 addAssignment(subscription, assignment.getSupervisorId());
             }
         }
