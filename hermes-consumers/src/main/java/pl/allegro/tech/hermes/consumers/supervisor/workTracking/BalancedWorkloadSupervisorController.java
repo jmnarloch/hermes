@@ -1,72 +1,63 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import com.google.common.collect.ImmutableList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import pl.allegro.tech.hermes.api.Subscription;
 import pl.allegro.tech.hermes.api.SubscriptionName;
+import pl.allegro.tech.hermes.common.config.ConfigFactory;
+import pl.allegro.tech.hermes.common.config.Configs;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionsCache;
 import pl.allegro.tech.hermes.consumers.supervisor.ConsumersSupervisor;
 
-import java.util.List;
+import static java.util.Collections.emptyList;
 
 public class BalancedWorkloadSupervisorController implements SupervisorController {
     private ConsumersSupervisor supervisor;
     private SubscriptionsCache subscriptionsCache;
     private WorkTracker workTracker;
     private ConsumersRegistry consumersRegistry;
-    private String supervisorId;
-    private WorkBalancer workBalancer;
+    private ConfigFactory configFactory;
+
+    private static final Logger logger = LoggerFactory.getLogger(BalancedWorkloadSupervisorController.class);
 
     public BalancedWorkloadSupervisorController(ConsumersSupervisor supervisor,
                                                 SubscriptionsCache subscriptionsCache,
                                                 WorkTracker workTracker,
                                                 ConsumersRegistry consumersRegistry,
-                                                WorkBalancer workBalancer,
-                                                String supervisorId) {
+                                                ConfigFactory configFactory) {
+
         this.supervisor = supervisor;
         this.subscriptionsCache = subscriptionsCache;
         this.workTracker = workTracker;
         this.consumersRegistry = consumersRegistry;
-        this.supervisorId = supervisorId;
-        this.workBalancer = workBalancer;
-    }
-
-    @Override
-    public void onSubscriptionCreated(Subscription subscription) {
-        if (isLeader()) {
-            List<SubscriptionName> subscriptions = subscriptionsCache.listSubscriptionNames();
-            List<String> supervisors = consumersRegistry.list();
-            SubscriptionAssignmentView work = workBalancer.balance(subscriptions, supervisors, workTracker.getAssignments());
-            workTracker.apply(work);
-        }
-    }
-
-    @Override
-    public void onSubscriptionRemoved(Subscription subscription) {
-
-    }
-
-    @Override
-    public void onSubscriptionChanged(Subscription subscription) {
-
+        this.configFactory = configFactory;
     }
 
     @Override
     public void onSubscriptionAssigned(Subscription subscription) {
-
+        logger.info("Assigning consumer for {}", subscription.getId());
+        supervisor.assignConsumerForSubscription(subscription);
     }
 
     @Override
-    public void onAssignmentRemoved(SubscriptionName subscriptionName) {
-
+    public void onAssignmentRemoved(SubscriptionName subscription) {
+        logger.info("Removing assignment from consumer for {}", subscription.getId());
+        supervisor.deleteConsumerForSubscriptionName(subscription);
     }
 
     @Override
     public void start() throws Exception {
-        subscriptionsCache.start(ImmutableList.of(this));
+        subscriptionsCache.start(emptyList());
         workTracker.start(ImmutableList.of(this));
         supervisor.start();
         consumersRegistry.start();
-        consumersRegistry.register();
+        consumersRegistry.register(new BalanceWorkloadJob(
+                consumersRegistry,
+                subscriptionsCache,
+                new WorkBalancer(),
+                workTracker,
+                configFactory.getIntProperty(Configs.CONSUMER_WORKLOAD_REBALANCE_INTERVAL)));
     }
 
     @Override
@@ -75,7 +66,7 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
     }
 
     public String getId() {
-        return supervisorId;
+        return consumersRegistry.getId();
     }
 
     public boolean isLeader() {

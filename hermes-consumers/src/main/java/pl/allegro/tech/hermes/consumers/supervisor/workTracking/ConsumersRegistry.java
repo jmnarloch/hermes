@@ -2,9 +2,11 @@ package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
+import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
 import pl.allegro.tech.hermes.common.cache.zookeeper.StartableCache;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
@@ -27,11 +29,12 @@ public class ConsumersRegistry extends StartableCache {
         this.leaderLatch = new LeaderLatch(curatorClient, getLeaderPath());
     }
 
-    public void register() {
+    public void register(LeaderLatchListener... leaderListener) {
         try {
             curatorClient.create().creatingParentsIfNeeded()
                     .withMode(EPHEMERAL).forPath(getNodePath(supervisorId));
             leaderLatch.start();
+            Arrays.stream(leaderListener).forEach(leaderLatch::addListener);
         } catch (Exception e) {
             throw new InternalProcessingException(e);
         }
@@ -63,5 +66,9 @@ public class ConsumersRegistry extends StartableCache {
 
     public List<String> list() {
         return getCurrentData().stream().map(data -> substringAfterLast(data.getPath(), "/")).collect(toList());
+    }
+
+    public String getId() {
+        return supervisorId;
     }
 }

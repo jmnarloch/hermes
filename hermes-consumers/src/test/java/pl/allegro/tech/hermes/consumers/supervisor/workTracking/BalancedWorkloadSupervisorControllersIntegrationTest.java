@@ -25,6 +25,7 @@ import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.ONE_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static pl.allegro.tech.hermes.common.config.Configs.CONSUMER_WORKLOAD_REBALANCE_INTERVAL;
 
 public class BalancedWorkloadSupervisorControllersIntegrationTest extends ZookeeperBaseTest {
 
@@ -160,7 +161,9 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
 
     private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id, CuratorFramework curator) {
         WorkTracker workTracker = new WorkTracker(curator, new ObjectMapper(), "/runtime", id, executorService, subscriptionsRepository);
-        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker,
-                new ConsumersRegistry(curator, executorService, "/registry", id), new WorkBalancer(), id);
+        ConsumersRegistry registry = new ConsumersRegistry(curator, executorService, "/registry", id);
+        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, registry,
+                new MutableConfigFactory()
+                        .overrideProperty(CONSUMER_WORKLOAD_REBALANCE_INTERVAL, 1));
     }
 }
