@@ -43,7 +43,7 @@ public class SubscriptionAssignmentView {
         return ImmutableSet.copyOf(supervisorAssignments.keySet());
     }
 
-    public Set<String> getConsumersForSubscription(SubscriptionName subscriptionName) {
+    public Set<String> getSupervisorsForSubscription(SubscriptionName subscriptionName) {
         return getAssignmentsForSubscription(subscriptionName).stream().map(SubscriptionAssignment::getSupervisorId).collect(toSet());
     }
 

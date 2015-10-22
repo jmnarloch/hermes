@@ -15,8 +15,13 @@ public class WorkBalancer {
 
     private static final Logger logger = LoggerFactory.getLogger(WorkBalancer.class);
 
-    private final static int MINIMAL_CONSUMERS_PER_SUBSCRIPTION = 2;
-    private final static int MAXIMUM_SUBSCRIPTIONS_PER_CONSUMER = 2;
+    private final int consumersPerSubscription;
+    private final int maxSubscriptionsPerConsumer;
+
+    public WorkBalancer(int consumersPerSubscription, int maxSubscriptionsPerConsumer) {
+        this.consumersPerSubscription = consumersPerSubscription;
+        this.maxSubscriptionsPerConsumer = maxSubscriptionsPerConsumer;
+    }
 
     public SubscriptionAssignmentView balance(List<SubscriptionName> subscriptions,
                                               List<String> supervisors,
@@ -73,16 +78,14 @@ public class WorkBalancer {
                     logger.warn("no consumer supervisor for subscription {} - this should not happen!?", subscription.get());
                     break;
                 }
-            } else {
-                logger.warn("no consumer supervisor can be assigned to subscription {}", subscription.get());
-                break;
-            }
+            } else break;
         }
     }
 
     private Optional<SubscriptionName> getNextSubscription(SubscriptionAssignmentView state, Set<String> availableSupervisors) {
         return state.getSubscriptions().stream()
-                .filter(s -> !Sets.difference(availableSupervisors, state.getConsumersForSubscription(s)).isEmpty())
+                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
+                .filter(s -> !Sets.difference(availableSupervisors, state.getSupervisorsForSubscription(s)).isEmpty())
                 .min((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()));
     }
 
@@ -94,13 +97,13 @@ public class WorkBalancer {
 
     private boolean workAvailable(SubscriptionAssignmentView state) {
         return state.getSubscriptions().stream()
-                .filter(s -> state.getAssignmentsForSubscription(s).size() < MINIMAL_CONSUMERS_PER_SUBSCRIPTION)
+                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
                 .findAny().isPresent();
     }
 
     private Set<String> availableSupervisors(SubscriptionAssignmentView state) {
         return state.getSupervisors().stream()
-                .filter(s -> state.getSubscriptionsForSupervisor(s).size() < MAXIMUM_SUBSCRIPTIONS_PER_CONSUMER)
+                .filter(s -> state.getSubscriptionsForSupervisor(s).size() < maxSubscriptionsPerConsumer)
                 .filter(s -> !Sets.difference(state.getSubscriptions(), state.getSubscriptionsForSupervisor(s)).isEmpty())
                 .collect(toSet());
     }

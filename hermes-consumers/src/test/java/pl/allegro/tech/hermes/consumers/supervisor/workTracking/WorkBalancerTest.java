@@ -7,6 +7,7 @@ import org.junit.Test;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.UUID;
 
 import static java.util.Collections.emptyMap;
@@ -14,7 +15,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class WorkBalancerTest {
 
-    private WorkBalancer workBalancer = new WorkBalancer();
+    private static int CONSUMERS_PER_SUBSCRIPTION = 2;
+    private static int MAX_SUBSCRIPTIONS_PER_CONSUMER = 2;
+
+    private WorkBalancer workBalancer = new WorkBalancer(CONSUMERS_PER_SUBSCRIPTION, MAX_SUBSCRIPTIONS_PER_CONSUMER);
 
     @Test
     public void shouldPerformSubscriptionsCleanup() {
@@ -104,6 +108,23 @@ public class WorkBalancerTest {
 
         // then
         assertThat(view.getAssignmentsForSupervisor("c1")).hasSize(2);
+    }
+
+    @Test
+    public void shouldRebalanceAfterConsumerDisappearing() {
+        // given
+        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
+        SubscriptionName s1 = anySubscription();
+        SubscriptionName s2 = anySubscription();
+        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2);
+        SubscriptionAssignmentView currentState = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+
+        // when
+        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c3");
+        SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
+
+        // then
+        assertThat(stateAfterRebalance.getSubscriptionsForSupervisor("c3")).containsOnly(s1, s2);
     }
 
     private SubscriptionAssignment assignment(SubscriptionName s1, String supervisorId) {
