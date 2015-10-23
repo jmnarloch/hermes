@@ -3,16 +3,18 @@ package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import pl.allegro.tech.hermes.api.Subscription;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
 import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -21,22 +23,23 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
 public class WorkTrackerTest extends ZookeeperBaseTest {
-    static String basePath = "/consumers/runtime";
+    static String basePath = "/hermes/consumers/runtime";
     static String supervisorId = "c1";
     static ExecutorService executorService = Executors.newSingleThreadExecutor();
     static SubscriptionRepository subscriptionRepository = mock(SubscriptionRepository.class);
 
-    static WorkTracker workTracker = new WorkTracker(zookeeperClient, new ObjectMapper(), basePath, supervisorId,
+    WorkTracker workTracker = new WorkTracker(zookeeperClient, new ObjectMapper(), basePath, supervisorId,
             executorService, subscriptionRepository);
 
-    @BeforeClass
-    public static void before() throws Exception {
+    @Before
+    public void before() throws Exception {
         workTracker.start(new ArrayList<>());
     }
 
-    @AfterClass
-    public static void after() throws IOException {
+    @After
+    public void cleanup() throws Exception {
         workTracker.stop();
+        deleteAllNodes();
     }
 
     @Test

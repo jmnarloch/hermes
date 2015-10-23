@@ -5,14 +5,24 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.jayway.awaitility.Duration;
 import org.apache.curator.framework.CuratorFramework;
-import org.junit.BeforeClass;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
+import pl.allegro.tech.hermes.api.Group;
 import pl.allegro.tech.hermes.api.Subscription;
 import pl.allegro.tech.hermes.api.SubscriptionName;
+import pl.allegro.tech.hermes.common.config.ConfigFactory;
 import pl.allegro.tech.hermes.common.exception.InternalProcessingException;
 import pl.allegro.tech.hermes.consumers.subscription.cache.SubscriptionsCache;
+import pl.allegro.tech.hermes.consumers.subscription.cache.zookeeper.ZookeeperSubscriptionsCacheFactory;
 import pl.allegro.tech.hermes.consumers.supervisor.ConsumersSupervisor;
+import pl.allegro.tech.hermes.domain.group.GroupRepository;
 import pl.allegro.tech.hermes.domain.subscription.SubscriptionRepository;
+import pl.allegro.tech.hermes.domain.topic.TopicRepository;
+import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperGroupRepository;
+import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperPaths;
+import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperSubscriptionRepository;
+import pl.allegro.tech.hermes.infrastructure.zookeeper.ZookeeperTopicRepository;
 import pl.allegro.tech.hermes.test.helper.zookeeper.ZookeeperBaseTest;
 
 import java.util.List;
@@ -25,21 +35,41 @@ import static com.jayway.awaitility.Awaitility.await;
 import static com.jayway.awaitility.Duration.ONE_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static pl.allegro.tech.hermes.api.Topic.Builder.topic;
 import static pl.allegro.tech.hermes.common.config.Configs.CONSUMER_WORKLOAD_REBALANCE_INTERVAL;
 
 public class BalancedWorkloadSupervisorControllersIntegrationTest extends ZookeeperBaseTest {
 
-    private static ConsumersSupervisor supervisor = mock(ConsumersSupervisor.class);
-    private static SubscriptionsCache subscriptionsCache = mock(SubscriptionsCache.class);
-    private static SubscriptionRepository subscriptionsRepository = mock(SubscriptionRepository.class);
+    private ZookeeperPaths paths;
+    private GroupRepository groupRepository;
+    private TopicRepository topicRepository;
+    private SubscriptionRepository subscriptionRepository;
 
+    private ConsumersSupervisor supervisor = mock(ConsumersSupervisor.class);
+
+    private ObjectMapper objectMapper = new ObjectMapper();
+
+    private ConfigFactory configFactory;
     private static ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private ConsumersRegistry consumersRegistry;
 
-    private static ConsumersRegistry consumersRegistry = new ConsumersRegistry(zookeeperClient, executorService, "/registry", "id");
+    @Before
+    public void setup() throws Exception {
+        configFactory = new MutableConfigFactory().overrideProperty(CONSUMER_WORKLOAD_REBALANCE_INTERVAL, 1);
+        zookeeperClient.create().creatingParentsIfNeeded().forPath("/hermes/groups");
+        paths = new ZookeeperPaths("/hermes");
 
-    @BeforeClass
-    public static void before() throws Exception {
+        consumersRegistry = new ConsumersRegistry(zookeeperClient, executorService, paths.consumersRegistryPath(), "id");
         consumersRegistry.start();
+
+        groupRepository = new ZookeeperGroupRepository(zookeeperClient, objectMapper, paths);
+        topicRepository = new ZookeeperTopicRepository(zookeeperClient, objectMapper, paths, groupRepository);
+        subscriptionRepository = new ZookeeperSubscriptionRepository(zookeeperClient, objectMapper, paths, topicRepository);
+    }
+
+    @After
+    public void cleanup() throws Exception {
+        deleteAllNodes();
     }
 
     @Test
@@ -95,51 +125,58 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
         // given
         BalancedWorkloadSupervisorController controller = getConsumerSupervisor("c1");
         startConsumer(controller);
-        Subscription subscription = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test"));
 
         // when
-        controller.onSubscriptionCreated(subscription);
+        createSubscription("com.example.topic$test");
 
         // then
-        await().atMost(Duration.TEN_SECONDS).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test/c1") != null);
+        awaitUntilAssignmentExists("com.example.topic$test", "c1");
     }
 
     @Test
     public void shouldAssignSubscriptionToMultipleConsumers() {
-        List<BalancedWorkloadSupervisorController> supervisors = ImmutableList.of(
-                getConsumerSupervisor("d1"), getConsumerSupervisor("d2"));
-        supervisors.forEach(this::startConsumer);
-        Subscription subscription = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test"));
+        // given
+        ImmutableList.of(getConsumerSupervisor("c1"), getConsumerSupervisor("c2")).forEach(this::startConsumer);
 
         // when
-        supervisors.forEach(c -> c.onSubscriptionCreated(subscription));
+        createSubscription("com.example.topic$test");
 
         // then
-        await().atMost(Duration.TEN_SECONDS).until(() ->
-                           zookeeperClient.checkExists().forPath("/runtime/example$test/d1") != null
-                        && zookeeperClient.checkExists().forPath("/runtime/example$test/d2") != null);
+        awaitUntilAssignmentExists("com.example.topic$test", "c1");
+        awaitUntilAssignmentExists("com.example.topic$test", "c1");
     }
 
     @Test
-    public void shouldNotExceedConsumerLimitWhenAssigningSubscriptions() {
+    public void shouldAssignConsumerToMultipleSubscriptions() {
         // given
-        BalancedWorkloadSupervisorController controller = getConsumerSupervisor("c1");
-        startConsumer(controller);
-        Subscription subscription1 = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test1"));
-        Subscription subscription2 = Subscription.fromSubscriptionName(SubscriptionName.fromString("com.example.topic$test2"));
-        controller.onSubscriptionCreated(subscription1);
-        await().atMost(Duration.ONE_SECOND).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test1/c1") != null);
+        startConsumer(getConsumerSupervisor("c1"));
 
         // when
-        controller.onSubscriptionCreated(subscription2);
+        createSubscription("com.example.topic$test1");
+        createSubscription("com.example.topic$test2");
 
         // then
-        await().atMost(Duration.ONE_SECOND).until(() -> zookeeperClient.checkExists().forPath("/runtime/example$test2/c1") != null);
+        awaitUntilAssignmentExists("com.example.topic$test1", "c1");
+        awaitUntilAssignmentExists("com.example.topic$test2", "c1");
     }
 
-    private BalancedWorkloadSupervisorController findLeader(List<BalancedWorkloadSupervisorController> supervisors) {
-        return supervisors.stream()
-                .filter(BalancedWorkloadSupervisorController::isLeader).findAny().get();
+    private void awaitUntilAssignmentExists(String subscription, String supervisorId) {
+        await().atMost(Duration.ONE_SECOND).until(() -> zookeeperClient.checkExists().forPath(assignmentPath(subscription, supervisorId)) != null);
+    }
+
+    private String assignmentPath(String subscription, String supervisorId) {
+        return paths.consumersRuntimePath() + "/" + subscription + "/" + supervisorId;
+    }
+
+    private BalancedWorkloadSupervisorController getConsumerSupervisor(String id) {
+        return getConsumerSupervisor(id, otherClient());
+    }
+
+    private BalancedWorkloadSupervisorController getConsumerSupervisor(String id, CuratorFramework curator) {
+        WorkTracker workTracker = new WorkTracker(curator, objectMapper, paths.consumersRuntimePath(), id, executorService, subscriptionRepository);
+        ConsumersRegistry registry = new ConsumersRegistry(curator, executorService, paths.consumersRegistryPath(), id);
+        SubscriptionsCache subscriptionsCache = new ZookeeperSubscriptionsCacheFactory(curator, configFactory, objectMapper).provide();
+        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, registry, configFactory);
     }
 
     private void startConsumer(BalancedWorkloadSupervisorController supervisorController) {
@@ -151,19 +188,26 @@ public class BalancedWorkloadSupervisorControllersIntegrationTest extends Zookee
         }
     }
 
+    private Subscription createSubscription(String subscriptionName) {
+        Subscription subscription = Subscription.fromSubscriptionName(SubscriptionName.fromString(subscriptionName));
+        Group group = Group.from(subscription.getTopicName().getGroupName());
+        if (!groupRepository.groupExists(group.getGroupName())) {
+            groupRepository.createGroup(group);
+        }
+        if (!topicRepository.topicExists(subscription.getTopicName())) {
+            topicRepository.createTopic(topic().applyDefaults().withName(subscription.getTopicName()).build());
+        }
+        subscriptionRepository.createSubscription(subscription);
+        await().atMost(ONE_SECOND).until(() -> subscriptionRepository.subscriptionExists(subscription.getTopicName(), subscription.getName()));
+        return subscription;
+    }
+
+    private BalancedWorkloadSupervisorController findLeader(List<BalancedWorkloadSupervisorController> supervisors) {
+        return supervisors.stream()
+                .filter(BalancedWorkloadSupervisorController::isLeader).findAny().get();
+    }
+
     private void waitForRegistration(String id) {
         await().atMost(ONE_SECOND).until(() -> consumersRegistry.isRegistered(id));
-    }
-
-    private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id) {
-        return getConsumerSupervisor(id, otherClient());
-    }
-
-    private static BalancedWorkloadSupervisorController getConsumerSupervisor(String id, CuratorFramework curator) {
-        WorkTracker workTracker = new WorkTracker(curator, new ObjectMapper(), "/runtime", id, executorService, subscriptionsRepository);
-        ConsumersRegistry registry = new ConsumersRegistry(curator, executorService, "/registry", id);
-        return new BalancedWorkloadSupervisorController(supervisor, subscriptionsCache, workTracker, registry,
-                new MutableConfigFactory()
-                        .overrideProperty(CONSUMER_WORKLOAD_REBALANCE_INTERVAL, 1));
     }
 }
