@@ -83,6 +83,12 @@ public class SubscriptionAssignmentView {
         supervisorAssignments.get(supervisorId).add(assignment);
     }
 
+    public void removeAssignment(SubscriptionName subscriptionName, String supervisorId) {
+        SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
+        subscriptionAssignments.get(subscriptionName).removeIf(assignment::equals);
+        supervisorAssignments.get(supervisorId).removeIf(assignment::equals);
+    }
+
     public SubscriptionAssignmentView deletions(SubscriptionAssignmentView target) {
         return difference(this, target);
     }

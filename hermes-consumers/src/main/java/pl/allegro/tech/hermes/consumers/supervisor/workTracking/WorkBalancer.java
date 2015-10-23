@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
 public class WorkBalancer {
@@ -35,9 +37,46 @@ public class WorkBalancer {
         addNewSubscriptions(state, subscriptions);
         addNewSupervisors(state, supervisors);
 
-        assignSupervisors(state);
+        do {
+            assignSupervisors(state);
+        } while (releaseWork(state));
 
         return state;
+    }
+
+    private boolean releaseWork(SubscriptionAssignmentView state) {
+        int subscriptionsCount = state.getSubscriptions().size();
+        int supervisorsCount = state.getSupervisors().size();
+        int avgWork = subscriptionsCount * consumersPerSubscription / supervisorsCount;
+
+        List<String> sortedSupervisors = state.getSupervisors().stream()
+                .sorted((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()))
+                .collect(toList());
+
+        sortedSupervisors.forEach(System.out::println);
+        int median = supervisorsCount % 2 == 0
+                ? (supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2)) + supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2 - 1))) / 2
+                : supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2));
+        System.out.println("median = " + median + " avg = " + avgWork);
+        System.out.println();
+
+        String lowestLoadSupervisor = sortedSupervisors.get(0);
+        int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);
+        if (lowestLoad < median && lowestLoad < avgWork) {
+            state.getSubscriptions().stream()
+                    .filter(s -> !state.getSubscriptionsForSupervisor(lowestLoadSupervisor).contains(s))
+                    .max((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()))
+                    .ifPresent(s -> state.getSupervisorsForSubscription(s).stream()
+                        .max((c1, c2) -> Integer.compare(supervisorLoad(state, c1), supervisorLoad(state, c2)))
+                            .ifPresent(c -> state.removeAssignment(s, c)));
+            return true;
+        }
+        return false;
+
+    }
+
+    private int supervisorLoad(SubscriptionAssignmentView state, String supervisorId) {
+        return state.getAssignmentsForSupervisor(supervisorId).size();
     }
 
     private void removeInvalidSubscriptions(SubscriptionAssignmentView state, List<SubscriptionName> subscriptions) {
