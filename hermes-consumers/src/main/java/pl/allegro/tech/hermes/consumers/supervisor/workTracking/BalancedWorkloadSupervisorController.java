@@ -55,7 +55,7 @@ public class BalancedWorkloadSupervisorController implements SupervisorControlle
         consumersRegistry.register(new BalanceWorkloadJob(
                 consumersRegistry,
                 subscriptionsCache,
-                new WorkBalancer(2, 2),
+                new WorkBalancer(configFactory.getIntProperty(Configs.CONSUMER_WORKLOAD_CONSUMERS_PER_SUBSCRIPTION), configFactory.getIntProperty(Configs.CONSUMER_WORKLOAD_MAX_SUBSCRIPTIONS_PER_CONSUMER)),
                 workTracker,
                 configFactory.getIntProperty(Configs.CONSUMER_WORKLOAD_REBALANCE_INTERVAL)));
     }
