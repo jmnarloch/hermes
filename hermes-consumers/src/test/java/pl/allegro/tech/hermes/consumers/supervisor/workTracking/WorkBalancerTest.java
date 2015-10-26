@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.emptyMap;
+import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class WorkBalancerTest {
@@ -26,11 +27,12 @@ public class WorkBalancerTest {
     @Test
     public void shouldPerformSubscriptionsCleanup() {
         // given
-        SubscriptionName s = anySubscription();
-        SubscriptionAssignmentView currentState = new SubscriptionAssignmentView(ImmutableMap.of(s, ImmutableSet.of(assignment(s, "c1"))));
+        List<SubscriptionName> subscriptions = someSubscriptions(1);
+        List<String> supervisors = someSupervisors(1);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors);
 
         // when
-        SubscriptionAssignmentView target = workBalancer.balance(Collections.emptyList(), Collections.emptyList(), currentState);
+        SubscriptionAssignmentView target = workBalancer.balance(someSubscriptions(0), supervisors, currentState);
 
         // then
         assertThat(target.getSubscriptions()).isEmpty();
@@ -39,133 +41,133 @@ public class WorkBalancerTest {
     @Test
     public void shouldPerformSupervisorsCleanup() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1");
-        SubscriptionName s = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s);
-        SubscriptionAssignmentView currentState = new SubscriptionAssignmentView(ImmutableMap.of(s, ImmutableSet.of(assignment(s, "c1"), assignment(s, "c2-alreadyDisconnected"))));
+        List<String> supervisors = someSupervisors(2);
+        List<SubscriptionName> subscriptions = someSubscriptions(1);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors);
 
         // when
+        supervisors.remove(1);
         SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, currentState);
 
         // then
-        assertThat(view.getAssignmentsForSubscription(s)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
+        assertThat(view.getAssignmentsForSubscription(subscriptions.get(0))).extracting(SubscriptionAssignment::getSupervisorId).containsOnly(supervisors.get(0));
     }
 
     @Test
     public void shouldBalanceWorkForSingleSubscription() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1");
-        SubscriptionName subscription = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(subscription);
+        List<String> supervisors = someSupervisors(1);
+        List<SubscriptionName> subscriptions = someSubscriptions(1);
 
         // when
-        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        SubscriptionAssignmentView view = initialState(subscriptions, supervisors);
 
         // then
-        assertThat(view.getAssignmentsForSubscription(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1");
+        assertThat(view.getAssignmentsForSubscription(subscriptions.get(0))).extracting(SubscriptionAssignment::getSupervisorId).containsOnly(supervisors.get(0));
     }
 
     @Test
     public void shouldBalanceWorkForMultipleConsumersAndSingleSubscription() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
-        SubscriptionName subscription = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(subscription);
+        List<String> supervisors = someSupervisors(2);
+        List<SubscriptionName> subscriptions = someSubscriptions(1);
 
         // when
-        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        SubscriptionAssignmentView view = initialState(subscriptions, supervisors);
 
         // then
-        assertThat(view.getAssignmentsForSubscription(subscription)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+        assertThat(view.getAssignmentsForSubscription(subscriptions.get(0))).extracting(SubscriptionAssignment::getSupervisorId).containsOnly(supervisors.get(0), supervisors.get(1));
     }
 
     @Test
     public void shouldBalanceWorkForMultipleConsumersAndMultipleSubscriptions() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
-        SubscriptionName s1 = anySubscription();
-        SubscriptionName s2 = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2);
+        List<String> supervisors = someSupervisors(2);
+        List<SubscriptionName> subscriptions = someSubscriptions(2);
 
         // when
-        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        SubscriptionAssignmentView view = initialState(subscriptions, supervisors);
 
         // then
-        assertThat(view.getAssignmentsForSubscription(s1)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
-        assertThat(view.getAssignmentsForSubscription(s2)).extracting(SubscriptionAssignment::getSupervisorId).containsOnly("c1", "c2");
+        assertThat(view.getAssignmentsForSubscription(subscriptions.get(0))).extracting(SubscriptionAssignment::getSupervisorId).containsOnly(supervisors.get(0), supervisors.get(1));
+        assertThat(view.getAssignmentsForSubscription(subscriptions.get(1))).extracting(SubscriptionAssignment::getSupervisorId).containsOnly(supervisors.get(0), supervisors.get(1));
     }
 
     @Test
     public void shouldNotOverloadConsumers() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1");
-        SubscriptionName s1 = anySubscription();
-        SubscriptionName s2 = anySubscription();
-        SubscriptionName s3 = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2, s3);
-
-        /* with a maximum of 2 subscriptions per consumer */
+        List<String> supervisors = someSupervisors(1);
+        List<SubscriptionName> subscriptions = someSubscriptions(3);
 
         // when
-        SubscriptionAssignmentView view = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        SubscriptionAssignmentView view = initialState(subscriptions, supervisors);
 
         // then
-        assertThat(view.getAssignmentsForSupervisor("c1")).hasSize(2);
+        assertThat(view.getAssignmentsForSupervisor(supervisors.get(0))).hasSize(2);
     }
 
     @Test
     public void shouldRebalanceAfterConsumerDisappearing() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
-        SubscriptionName s1 = anySubscription();
-        SubscriptionName s2 = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2);
-        SubscriptionAssignmentView currentState = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        List<String> supervisors = ImmutableList.of("c1", "c2");
+        List<SubscriptionName> subscriptions = someSubscriptions(2);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors);
 
         // when
-        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c3");
+        List<String> extendedSupervisorsList = ImmutableList.of("c1", "c3");
         SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
 
         // then
-        assertThat(stateAfterRebalance.getSubscriptionsForSupervisor("c3")).containsOnly(s1, s2);
+        assertThat(stateAfterRebalance.getSubscriptionsForSupervisor("c3")).containsOnly(subscriptions.get(0), subscriptions.get(1));
     }
 
     @Test
     public void shouldAssignWorkToNewConsumersByWorkStealing() {
         // given
-        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2");
-        SubscriptionName s1 = anySubscription();
-        SubscriptionName s2 = anySubscription();
-        ImmutableList<SubscriptionName> subscriptions = ImmutableList.of(s1, s2);
-        SubscriptionAssignmentView currentState = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        List<String> supervisors = someSupervisors(2);
+        List<SubscriptionName> subscriptions = someSubscriptions(2);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors);
 
         // when
-        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3");
-        SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
+        supervisors.add("new-supervisor");
+        SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, supervisors, currentState);
 
         // then
-        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c3").size()).isGreaterThan(0);
-        assertThat(stateAfterRebalance.getAssignmentsForSubscription(s1)).hasSize(2);
-        assertThat(stateAfterRebalance.getAssignmentsForSubscription(s2)).hasSize(2);
+        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("new-supervisor").size()).isGreaterThan(0);
+        assertThat(stateAfterRebalance.getAssignmentsForSubscription(subscriptions.get(0))).hasSize(2);
+        assertThat(stateAfterRebalance.getAssignmentsForSubscription(subscriptions.get(1))).hasSize(2);
     }
 
     @Test
     public void shouldAssignWorkToNewConsumersByWorkStealingGOOOOO() {
         // given
         WorkBalancer workBalancer = new WorkBalancer(2, 500);
-        ImmutableList<String> supervisors = ImmutableList.of("c1", "c2", "c3");
-        List<SubscriptionName> subscriptions = new ArrayList<>();
-        for (int i = 0; i < 200; i++) {
-            subscriptions.add(anySubscription());
-        }
-        SubscriptionAssignmentView currentState = workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+        List<String> supervisors = ImmutableList.of("c1", "c2", "c3");
+        List<SubscriptionName> subscriptions = someSubscriptions(200);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors);
 
         // when
         ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3", "c4", "c5");
         SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
 
         // then
-        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c5").size()).isGreaterThan(0);
+        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c5")).hasSize(200 * 2 / 5);
+    }
+
+    private SubscriptionAssignmentView initialState(List<SubscriptionName> subscriptions, List<String> supervisors) {
+        return initialState(subscriptions, supervisors, workBalancer);
+    }
+
+    private SubscriptionAssignmentView initialState(List<SubscriptionName> subscriptions, List<String> supervisors, WorkBalancer workBalancer) {
+        return workBalancer.balance(subscriptions, supervisors, new SubscriptionAssignmentView(emptyMap()));
+    }
+
+    private List<SubscriptionName> someSubscriptions(int count) {
+        return IntStream.range(0, count).mapToObj(i -> anySubscription()).collect(toList());
+    }
+
+    private List<String> someSupervisors(int count) {
+        return IntStream.range(0, count).mapToObj(i -> "c" + i).collect(toList());
     }
 
     private SubscriptionAssignment assignment(SubscriptionName s1, String supervisorId) {
