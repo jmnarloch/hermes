@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -36,20 +37,25 @@ public class WorkBalancer {
         addNewSubscriptions(state, subscriptions);
         addNewSupervisors(state, supervisors);
 
+        Set<SubscriptionName> canDetachSupervisorsFrom = new HashSet<>(state.getSubscriptions());
+
         do {
             assignSupervisors(state);
-        } while (releaseWork(state));
+        } while (releaseWork(state, canDetachSupervisorsFrom));
 
         return state;
     }
 
-    private boolean releaseWork(SubscriptionAssignmentView state) {
+    private boolean releaseWork(SubscriptionAssignmentView state, Set<SubscriptionName> canDetachSupervisorsFrom) {
+        if (canDetachSupervisorsFrom.isEmpty()) {
+            return false;
+        }
         int subscriptionsCount = state.getSubscriptions().size();
         int supervisorsCount = state.getSupervisors().size();
         int avgWork = subscriptionsCount * consumersPerSubscription / supervisorsCount;
 
         List<String> sortedSupervisors = state.getSupervisors().stream()
-                .sorted((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()))
+                .sorted((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)))
                 .collect(toList());
 
         int median = supervisorsCount % 2 == 0
@@ -59,20 +65,26 @@ public class WorkBalancer {
         String lowestLoadSupervisor = sortedSupervisors.get(0);
         int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);
         if (lowestLoad < median && lowestLoad < avgWork) {
-            state.getSubscriptions().stream()
-                    .filter(s -> !state.getSubscriptionsForSupervisor(lowestLoadSupervisor).contains(s))
-                    .max((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()))
-                    .ifPresent(s -> state.getSupervisorsForSubscription(s).stream()
-                        .max((c1, c2) -> Integer.compare(supervisorLoad(state, c1), supervisorLoad(state, c2)))
-                            .ifPresent(c -> state.removeAssignment(s, c)));
-            return true;
+
+            Optional<String> maxLoadedSupervisor = state.getSupervisors().stream()
+                    .filter(s -> !s.equals(lowestLoadSupervisor))
+                    .filter(s -> Sets.difference(state.getSubscriptionsForSupervisor(s), canDetachSupervisorsFrom).isEmpty())
+                    .max((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)));
+
+            if (maxLoadedSupervisor.isPresent()) {
+                Optional<SubscriptionName> maxConsumedSubscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor.get()).stream()
+                        .filter(s -> canDetachSupervisorsFrom.contains(s))
+                        .max((s1, s2) -> Integer.compare(assignmentsCount(state, s1), assignmentsCount(state, s2)));
+
+                if (maxConsumedSubscription.isPresent()) {
+                    state.removeAssignment(maxConsumedSubscription.get(), maxLoadedSupervisor.get());
+                    canDetachSupervisorsFrom.remove(maxConsumedSubscription.get());
+                    return true;
+                }
+            }
         }
         return false;
 
-    }
-
-    private int supervisorLoad(SubscriptionAssignmentView state, String supervisorId) {
-        return state.getAssignmentsForSupervisor(supervisorId).size();
     }
 
     private void removeInvalidSubscriptions(SubscriptionAssignmentView state, List<SubscriptionName> subscriptions) {
@@ -119,27 +131,35 @@ public class WorkBalancer {
 
     private Optional<SubscriptionName> getNextSubscription(SubscriptionAssignmentView state, Set<String> availableSupervisors) {
         return state.getSubscriptions().stream()
-                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
+                .filter(s -> assignmentsCount(state, s) < consumersPerSubscription)
                 .filter(s -> !Sets.difference(availableSupervisors, state.getSupervisorsForSubscription(s)).isEmpty())
-                .min((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()));
+                .min((s1, s2) -> Integer.compare(assignmentsCount(state, s1), assignmentsCount(state, s2)));
     }
 
     private Optional<String> getNextSupervisor(SubscriptionAssignmentView state, Set<String> availableSupervisors, SubscriptionName subscriptionName) {
         return availableSupervisors.stream()
             .filter(s -> !state.getSubscriptionsForSupervisor(s).contains(subscriptionName))
-            .min((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()));
+            .min((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)));
     }
 
     private boolean workAvailable(SubscriptionAssignmentView state) {
         return state.getSubscriptions().stream()
-                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
+                .filter(s -> assignmentsCount(state, s) < consumersPerSubscription)
                 .findAny().isPresent();
     }
 
     private Set<String> availableSupervisors(SubscriptionAssignmentView state) {
         return state.getSupervisors().stream()
-                .filter(s -> state.getSubscriptionsForSupervisor(s).size() < maxSubscriptionsPerConsumer)
+                .filter(s -> supervisorLoad(state, s) < maxSubscriptionsPerConsumer)
                 .filter(s -> !Sets.difference(state.getSubscriptions(), state.getSubscriptionsForSupervisor(s)).isEmpty())
                 .collect(toSet());
+    }
+
+    private int assignmentsCount(SubscriptionAssignmentView state, SubscriptionName subscription) {
+        return state.getAssignmentsForSubscription(subscription).size();
+    }
+
+    private int supervisorLoad(SubscriptionAssignmentView state, String supervisorId) {
+        return state.getAssignmentsForSupervisor(supervisorId).size();
     }
 }

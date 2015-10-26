@@ -1,15 +1,12 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import jersey.repackaged.com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import org.junit.Test;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -139,7 +136,7 @@ public class WorkBalancerTest {
     }
 
     @Test
-    public void shouldAssignWorkToNewConsumersByWorkStealingGOOOOO() {
+    public void shouldEquallyAssignWorkToConsumers() {
         // given
         WorkBalancer workBalancer = new WorkBalancer(2, 500);
         List<String> supervisors = ImmutableList.of("c1", "c2", "c3");
@@ -152,6 +149,26 @@ public class WorkBalancerTest {
 
         // then
         assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c5")).hasSize(200 * 2 / 5);
+    }
+
+    @Test
+    public void shouldDetachAtMostOneConsumerFromSingleSubscriptionDuringRebalance() {
+        // given
+        WorkBalancer workBalancer = new WorkBalancer(4, 500);
+        List<SubscriptionName> subscriptions = someSubscriptions(200);
+        List<String> supervisors = someSupervisors(5);
+        SubscriptionAssignmentView initialState = initialState(subscriptions, supervisors, workBalancer);
+
+        // when
+        List<String> moreSupervisors = someSupervisors(10);
+        SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, moreSupervisors, initialState);
+
+        // then
+        for (SubscriptionName subscription : subscriptions) {
+            Set<String> supervisorsBeforeRebalance = initialState.getSupervisorsForSubscription(subscription);
+            Set<String> supervisorsAfterRebalance = stateAfterRebalance.getSupervisorsForSubscription(subscription);
+            assertThat(Sets.difference(supervisorsBeforeRebalance, supervisorsAfterRebalance).size()).isLessThanOrEqualTo(1);
+        }
     }
 
     private SubscriptionAssignmentView initialState(List<SubscriptionName> subscriptions, List<String> supervisors) {
@@ -168,10 +185,6 @@ public class WorkBalancerTest {
 
     private List<String> someSupervisors(int count) {
         return IntStream.range(0, count).mapToObj(i -> "c" + i).collect(toList());
-    }
-
-    private SubscriptionAssignment assignment(SubscriptionName s1, String supervisorId) {
-        return new SubscriptionAssignment(supervisorId, s1);
     }
 
     private SubscriptionName anySubscription() {
