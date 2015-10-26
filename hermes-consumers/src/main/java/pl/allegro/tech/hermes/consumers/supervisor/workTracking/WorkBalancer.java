@@ -1,14 +1,12 @@
 package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 
-import com.google.common.collect.Sets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -50,7 +48,7 @@ public class WorkBalancer {
         int avgWork = subscriptionsCount * consumersPerSubscription / supervisorsCount;
 
         List<String> sortedSupervisors = state.getSupervisors().stream()
-                .sorted((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)))
+                .sorted(Comparator.comparingInt(s -> supervisorLoad(state, s)))
                 .collect(toList());
 
         int median = supervisorsCount % 2 == 0
@@ -63,11 +61,11 @@ public class WorkBalancer {
 
             Optional<String> maxLoadedSupervisor = state.getSupervisors().stream()
                     .filter(s -> !s.equals(lowestLoadSupervisor))
-                    .max((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)));
+                    .max(Comparator.comparingInt(s -> supervisorLoad(state, s)));
 
             if (maxLoadedSupervisor.isPresent()) {
                 Optional<SubscriptionName> maxConsumedSubscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor.get()).stream()
-                        .max((s1, s2) -> Integer.compare(assignmentsCount(state, s1), assignmentsCount(state, s2)));
+                        .max(Comparator.comparingInt(s -> assignmentsCount(state, s)));
 
                 if (maxConsumedSubscription.isPresent()) {
                     state.removeAssignment(maxConsumedSubscription.get(), maxLoadedSupervisor.get());

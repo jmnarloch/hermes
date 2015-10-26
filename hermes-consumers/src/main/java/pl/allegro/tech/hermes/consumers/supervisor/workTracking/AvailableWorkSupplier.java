@@ -3,6 +3,7 @@ package pl.allegro.tech.hermes.consumers.supervisor.workTracking;
 import com.google.common.collect.Sets;
 import pl.allegro.tech.hermes.api.SubscriptionName;
 
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -35,13 +36,13 @@ public class AvailableWorkSupplier implements Supplier<SubscriptionAssignment> {
         return state.getSubscriptions().stream()
                 .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
                 .filter(s -> !Sets.difference(availableSupervisors, state.getSupervisorsForSubscription(s)).isEmpty())
-                .min((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()));
+                .min(Comparator.comparingInt(s -> state.getAssignmentsForSubscription(s).size()));
     }
 
     private Optional<SubscriptionAssignment> getNextSubscriptionAssignment(SubscriptionAssignmentView state, Set<String> availableSupervisors, SubscriptionName subscriptionName) {
         return availableSupervisors.stream()
                 .filter(s -> !state.getSubscriptionsForSupervisor(s).contains(subscriptionName))
-                .min((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()))
+                .min(Comparator.comparingInt(s -> state.getAssignmentsForSupervisor(s).size()))
                 .map(s -> new SubscriptionAssignment(s, subscriptionName));
     }
 
