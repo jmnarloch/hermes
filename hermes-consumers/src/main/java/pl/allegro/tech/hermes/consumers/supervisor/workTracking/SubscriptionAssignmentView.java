@@ -78,9 +78,12 @@ public class SubscriptionAssignmentView {
     }
 
     public void addAssignment(SubscriptionName subscriptionName, String supervisorId) {
-        SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
-        subscriptionAssignments.get(subscriptionName).add(assignment);
-        supervisorAssignments.get(supervisorId).add(assignment);
+        addAssignment(new SubscriptionAssignment(supervisorId, subscriptionName));
+    }
+
+    public void addAssignment(SubscriptionAssignment assignment) {
+        subscriptionAssignments.get(assignment.getSubscriptionName()).add(assignment);
+        supervisorAssignments.get(assignment.getSupervisorId()).add(assignment);
     }
 
     public void removeAssignment(SubscriptionName subscriptionName, String supervisorId) {
@@ -129,4 +132,5 @@ public class SubscriptionAssignmentView {
         SubscriptionAssignmentView that = (SubscriptionAssignmentView) o;
         return Objects.equals(subscriptionAssignments, that.subscriptionAssignments);
     }
+
 }

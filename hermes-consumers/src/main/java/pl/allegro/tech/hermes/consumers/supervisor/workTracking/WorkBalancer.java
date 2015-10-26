@@ -7,8 +7,7 @@ import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -41,7 +40,7 @@ public class WorkBalancer {
 
         do {
             assignSupervisors(state);
-        } while (releaseWork(state, canDetachSupervisorsFrom));
+        } while (releaseWork(state));
 
         return state;
     }
@@ -104,42 +103,26 @@ public class WorkBalancer {
     }
 
     private void assignSupervisors(SubscriptionAssignmentView state) {
-        while (true) {
-            Set<String> availableSupervisors = availableSupervisors(state);
-
-            if (availableSupervisors.isEmpty()) {
-                if (workAvailable(state)) {
-                    logger.warn("no more consumers available to perform work");
-                }
-                break;
+        try {
+            Stream.generate(new AvailableWorkSupplier(state, consumersPerSubscription, maxSubscriptionsPerConsumer)).forEach(state::addAssignment);
+        } catch (AvailableWorkSupplier.NoWorkAvailable ex) {
+            if (workAvailable(state)) {
+                logger.warn("Could not assign available work", ex);
             }
-
-            Optional<SubscriptionName> subscription = getNextSubscription(state, availableSupervisors);
-
-            if (subscription.isPresent()) {
-                Optional<String> supervisor = getNextSupervisor(state, availableSupervisors, subscription.get());
-
-                if (supervisor.isPresent()) {
-                    state.addAssignment(subscription.get(), supervisor.get());
-                } else {
-                    logger.warn("no consumer supervisor for subscription {} - this should not happen!?", subscription.get());
-                    break;
-                }
-            } else break;
         }
     }
 
     private Optional<SubscriptionName> getNextSubscription(SubscriptionAssignmentView state, Set<String> availableSupervisors) {
         return state.getSubscriptions().stream()
-                .filter(s -> assignmentsCount(state, s) < consumersPerSubscription)
+                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
                 .filter(s -> !Sets.difference(availableSupervisors, state.getSupervisorsForSubscription(s)).isEmpty())
-                .min((s1, s2) -> Integer.compare(assignmentsCount(state, s1), assignmentsCount(state, s2)));
+                .min((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()));
     }
 
     private Optional<String> getNextSupervisor(SubscriptionAssignmentView state, Set<String> availableSupervisors, SubscriptionName subscriptionName) {
         return availableSupervisors.stream()
             .filter(s -> !state.getSubscriptionsForSupervisor(s).contains(subscriptionName))
-            .min((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)));
+            .min((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()));
     }
 
     private boolean workAvailable(SubscriptionAssignmentView state) {
