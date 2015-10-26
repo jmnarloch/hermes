@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
@@ -53,12 +52,9 @@ public class WorkBalancer {
                 .sorted((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()))
                 .collect(toList());
 
-        sortedSupervisors.forEach(System.out::println);
         int median = supervisorsCount % 2 == 0
                 ? (supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2)) + supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2 - 1))) / 2
                 : supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2));
-        System.out.println("median = " + median + " avg = " + avgWork);
-        System.out.println();
 
         String lowestLoadSupervisor = sortedSupervisors.get(0);
         int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);

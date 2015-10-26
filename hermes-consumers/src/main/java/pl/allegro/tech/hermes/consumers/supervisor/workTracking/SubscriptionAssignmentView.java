@@ -85,8 +85,8 @@ public class SubscriptionAssignmentView {
 
     public void removeAssignment(SubscriptionName subscriptionName, String supervisorId) {
         SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
-        subscriptionAssignments.get(subscriptionName).removeIf(assignment::equals);
-        supervisorAssignments.get(supervisorId).removeIf(assignment::equals);
+        subscriptionAssignments.get(subscriptionName).remove(assignment);
+        supervisorAssignments.get(supervisorId).remove(assignment);
     }
 
     public SubscriptionAssignmentView deletions(SubscriptionAssignmentView target) {
