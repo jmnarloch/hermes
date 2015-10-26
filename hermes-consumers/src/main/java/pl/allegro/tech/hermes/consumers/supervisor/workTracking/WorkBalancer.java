@@ -7,10 +7,11 @@ import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toSet;
 
 public class WorkBalancer {
 
@@ -40,7 +41,7 @@ public class WorkBalancer {
 
         do {
             assignSupervisors(state);
-        } while (releaseWork(state));
+        } while (releaseWork(state, canDetachSupervisorsFrom));
 
         return state;
     }
@@ -72,7 +73,7 @@ public class WorkBalancer {
 
             if (maxLoadedSupervisor.isPresent()) {
                 Optional<SubscriptionName> maxConsumedSubscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor.get()).stream()
-                        .filter(s -> canDetachSupervisorsFrom.contains(s))
+                        .filter(canDetachSupervisorsFrom::contains)
                         .max((s1, s2) -> Integer.compare(assignmentsCount(state, s1), assignmentsCount(state, s2)));
 
                 if (maxConsumedSubscription.isPresent()) {
@@ -112,30 +113,10 @@ public class WorkBalancer {
         }
     }
 
-    private Optional<SubscriptionName> getNextSubscription(SubscriptionAssignmentView state, Set<String> availableSupervisors) {
-        return state.getSubscriptions().stream()
-                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
-                .filter(s -> !Sets.difference(availableSupervisors, state.getSupervisorsForSubscription(s)).isEmpty())
-                .min((s1, s2) -> Integer.compare(state.getAssignmentsForSubscription(s1).size(), state.getAssignmentsForSubscription(s2).size()));
-    }
-
-    private Optional<String> getNextSupervisor(SubscriptionAssignmentView state, Set<String> availableSupervisors, SubscriptionName subscriptionName) {
-        return availableSupervisors.stream()
-            .filter(s -> !state.getSubscriptionsForSupervisor(s).contains(subscriptionName))
-            .min((s1, s2) -> Integer.compare(state.getAssignmentsForSupervisor(s1).size(), state.getAssignmentsForSupervisor(s2).size()));
-    }
-
     private boolean workAvailable(SubscriptionAssignmentView state) {
         return state.getSubscriptions().stream()
                 .filter(s -> assignmentsCount(state, s) < consumersPerSubscription)
                 .findAny().isPresent();
-    }
-
-    private Set<String> availableSupervisors(SubscriptionAssignmentView state) {
-        return state.getSupervisors().stream()
-                .filter(s -> supervisorLoad(state, s) < maxSubscriptionsPerConsumer)
-                .filter(s -> !Sets.difference(state.getSubscriptions(), state.getSubscriptionsForSupervisor(s)).isEmpty())
-                .collect(toSet());
     }
 
     private int assignmentsCount(SubscriptionAssignmentView state, SubscriptionName subscription) {
