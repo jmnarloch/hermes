@@ -37,19 +37,14 @@ public class WorkBalancer {
         addNewSubscriptions(state, subscriptions);
         addNewSupervisors(state, supervisors);
 
-        Set<SubscriptionName> canDetachSupervisorsFrom = new HashSet<>(state.getSubscriptions());
-
         do {
             assignSupervisors(state);
-        } while (releaseWork(state, canDetachSupervisorsFrom));
+        } while (releaseWork(state));
 
         return state;
     }
 
-    private boolean releaseWork(SubscriptionAssignmentView state, Set<SubscriptionName> canDetachSupervisorsFrom) {
-        if (canDetachSupervisorsFrom.isEmpty()) {
-            return false;
-        }
+    private boolean releaseWork(SubscriptionAssignmentView state) {
         int subscriptionsCount = state.getSubscriptions().size();
         int supervisorsCount = state.getSupervisors().size();
         int avgWork = subscriptionsCount * consumersPerSubscription / supervisorsCount;
@@ -68,17 +63,14 @@ public class WorkBalancer {
 
             Optional<String> maxLoadedSupervisor = state.getSupervisors().stream()
                     .filter(s -> !s.equals(lowestLoadSupervisor))
-                    .filter(s -> Sets.difference(state.getSubscriptionsForSupervisor(s), canDetachSupervisorsFrom).isEmpty())
                     .max((s1, s2) -> Integer.compare(supervisorLoad(state, s1), supervisorLoad(state, s2)));
 
             if (maxLoadedSupervisor.isPresent()) {
                 Optional<SubscriptionName> maxConsumedSubscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor.get()).stream()
-                        .filter(canDetachSupervisorsFrom::contains)
                         .max((s1, s2) -> Integer.compare(assignmentsCount(state, s1), assignmentsCount(state, s2)));
 
                 if (maxConsumedSubscription.isPresent()) {
                     state.removeAssignment(maxConsumedSubscription.get(), maxLoadedSupervisor.get());
-                    canDetachSupervisorsFrom.remove(maxConsumedSubscription.get());
                     return true;
                 }
             }

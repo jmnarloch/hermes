@@ -141,7 +141,7 @@ public class WorkBalancerTest {
         WorkBalancer workBalancer = new WorkBalancer(2, 500);
         List<String> supervisors = ImmutableList.of("c1", "c2", "c3");
         List<SubscriptionName> subscriptions = someSubscriptions(200);
-        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors, workBalancer);
 
         // when
         ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3", "c4", "c5");
@@ -149,26 +149,6 @@ public class WorkBalancerTest {
 
         // then
         assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c5")).hasSize(200 * 2 / 5);
-    }
-
-    @Test
-    public void shouldDetachAtMostOneConsumerFromSingleSubscriptionDuringRebalance() {
-        // given
-        WorkBalancer workBalancer = new WorkBalancer(4, 500);
-        List<SubscriptionName> subscriptions = someSubscriptions(200);
-        List<String> supervisors = someSupervisors(5);
-        SubscriptionAssignmentView initialState = initialState(subscriptions, supervisors, workBalancer);
-
-        // when
-        List<String> moreSupervisors = someSupervisors(10);
-        SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, moreSupervisors, initialState);
-
-        // then
-        for (SubscriptionName subscription : subscriptions) {
-            Set<String> supervisorsBeforeRebalance = initialState.getSupervisorsForSubscription(subscription);
-            Set<String> supervisorsAfterRebalance = stateAfterRebalance.getSupervisorsForSubscription(subscription);
-            assertThat(Sets.difference(supervisorsBeforeRebalance, supervisorsAfterRebalance).size()).isLessThanOrEqualTo(1);
-        }
     }
 
     private SubscriptionAssignmentView initialState(List<SubscriptionName> subscriptions, List<String> supervisors) {
