@@ -26,7 +26,7 @@ public class WorkBalancer {
                                               List<String> supervisors,
                                               SubscriptionAssignmentView currentState) {
 
-        logger.info("Initializing workload balance [subscriptions_count=%s, consumers_count=%s]."
+        logger.info("Initializing workload balance [subscriptions_count={}, consumers_count={}]."
                 , subscriptions.size(), supervisors.size());
 
         SubscriptionAssignmentView state = SubscriptionAssignmentView.copyOf(currentState);
@@ -41,7 +41,7 @@ public class WorkBalancer {
             assignSupervisors(state);
         } while (releaseWork(state));
 
-        logger.info("Finished workload balance [subscriptions_count=%s, consumers_count=%s].",
+        logger.info("Finished workload balance [subscriptions_count={}, consumers_count={}].",
                 subscriptions.size(), supervisors.size());
         return state;
     }
@@ -54,7 +54,7 @@ public class WorkBalancer {
         String lowestLoadSupervisor = sortedByLoad.get(0);
         int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);
 
-        logger.debug("releaseWork [target_average=%s, current_median=%s, lowest_load_consumer=%s, lowest_load=%s].",
+        logger.debug("releaseWork [target_average={}, current_median={}, lowest_load_consumer={}, lowest_load={}].",
                 targetAverage, currentMedian, lowestLoadSupervisor, lowestLoad);
 
         if (lowestLoad < currentMedian && lowestLoad < targetAverage) {
