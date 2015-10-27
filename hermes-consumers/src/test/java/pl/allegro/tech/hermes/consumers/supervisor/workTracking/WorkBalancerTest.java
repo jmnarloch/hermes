@@ -138,17 +138,17 @@ public class WorkBalancerTest {
     @Test
     public void shouldEquallyAssignWorkToConsumers() {
         // given
-        WorkBalancer workBalancer = new WorkBalancer(2, 500);
-        List<String> supervisors = ImmutableList.of("c1", "c2", "c3");
-        List<SubscriptionName> subscriptions = someSubscriptions(200);
+        WorkBalancer workBalancer = new WorkBalancer(2, 200);
+        List<String> supervisors = ImmutableList.of("c1", "c2");
+        List<SubscriptionName> subscriptions = someSubscriptions(50);
         SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors, workBalancer);
 
         // when
-        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3", "c4", "c5");
+        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3");
         SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
 
         // then
-        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c5")).hasSize(200 * 2 / 5);
+        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c3")).hasSize(50 * 2 / 3);
     }
 
     private SubscriptionAssignmentView initialState(List<SubscriptionName> subscriptions, List<String> supervisors) {

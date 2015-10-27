@@ -90,12 +90,6 @@ public class SubscriptionAssignmentView {
         supervisorAssignments.get(assignment.getSupervisorId()).add(assignment);
     }
 
-    public void removeAssignment(SubscriptionName subscriptionName, String supervisorId) {
-        SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
-        subscriptionAssignments.get(subscriptionName).remove(assignment);
-        supervisorAssignments.get(supervisorId).remove(assignment);
-    }
-
     public void removeAssignment(SubscriptionAssignment assignment) {
         subscriptionAssignments.get(assignment.getSubscriptionName()).remove(assignment);
         supervisorAssignments.get(assignment.getSupervisorId()).remove(assignment);

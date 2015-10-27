@@ -6,6 +6,7 @@ import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -59,9 +60,15 @@ public class WorkBalancer {
 
         if (lowestLoad < currentMedian && lowestLoad < targetAverage) {
             String maxLoadedSupervisor = sortedByLoad.get(sortedByLoad.size() - 1);
-            SubscriptionAssignment assignment = state.getAssignmentsForSupervisor(maxLoadedSupervisor).iterator().next();
-            state.removeAssignment(assignment);
-            return true;
+            Optional<SubscriptionName> subscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor).stream()
+                    .filter(s -> !state.getSupervisorsForSubscription(s).contains(lowestLoadSupervisor))
+                    .findAny();
+
+            if (subscription.isPresent()) {
+                SubscriptionAssignment assignment = new SubscriptionAssignment(maxLoadedSupervisor, subscription.get());
+                state.removeAssignment(assignment);
+                return true;
+            }
         }
         return false;
     }
