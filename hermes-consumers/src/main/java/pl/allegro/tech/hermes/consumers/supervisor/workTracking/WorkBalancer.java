@@ -43,38 +43,32 @@ public class WorkBalancer {
     }
 
     private boolean releaseWork(SubscriptionAssignmentView state) {
-        int subscriptionsCount = state.getSubscriptions().size();
-        int supervisorsCount = state.getSupervisors().size();
-        int avgWork = subscriptionsCount * consumersPerSubscription / supervisorsCount;
+        List<String> sortedByLoad = getSupervisorsSortedAscendingByLoad(state);
+        int targetAverage = state.getSubscriptions().size() * consumersPerSubscription / state.getSupervisors().size();
+        int currentMedian = getSupervisorsLoadMedian(state, sortedByLoad);
 
-        List<String> sortedSupervisors = state.getSupervisors().stream()
-                .sorted(Comparator.comparingInt(s -> supervisorLoad(state, s)))
-                .collect(toList());
-
-        int median = supervisorsCount % 2 == 0
-                ? (supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2)) + supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2 - 1))) / 2
-                : supervisorLoad(state, sortedSupervisors.get(supervisorsCount / 2));
-
-        String lowestLoadSupervisor = sortedSupervisors.get(0);
+        String lowestLoadSupervisor = sortedByLoad.get(0);
         int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);
-        if (lowestLoad < median && lowestLoad < avgWork) {
-
-            Optional<String> maxLoadedSupervisor = state.getSupervisors().stream()
-                    .filter(s -> !s.equals(lowestLoadSupervisor))
-                    .max(Comparator.comparingInt(s -> supervisorLoad(state, s)));
-
-            if (maxLoadedSupervisor.isPresent()) {
-                Optional<SubscriptionName> maxConsumedSubscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor.get()).stream()
-                        .max(Comparator.comparingInt(s -> assignmentsCount(state, s)));
-
-                if (maxConsumedSubscription.isPresent()) {
-                    state.removeAssignment(maxConsumedSubscription.get(), maxLoadedSupervisor.get());
-                    return true;
-                }
-            }
+        if (lowestLoad < currentMedian && lowestLoad < targetAverage) {
+            String maxLoadedSupervisor = sortedByLoad.get(sortedByLoad.size() - 1);
+            SubscriptionAssignment assignment = state.getAssignmentsForSupervisor(maxLoadedSupervisor).iterator().next();
+            state.removeAssignment(assignment.getSubscriptionName(), assignment.getSupervisorId());
+            return true;
         }
         return false;
+    }
 
+    private List<String> getSupervisorsSortedAscendingByLoad(SubscriptionAssignmentView state) {
+        return state.getSupervisors().stream()
+                .sorted(Comparator.comparingInt(s -> supervisorLoad(state, s)))
+                .collect(toList());
+    }
+
+    private int getSupervisorsLoadMedian(SubscriptionAssignmentView state, List<String> sorted) {
+        int supervisorsCount = sorted.size();
+        return supervisorsCount % 2 == 0
+                ? (supervisorLoad(state, sorted.get(supervisorsCount / 2)) + supervisorLoad(state, sorted.get(supervisorsCount / 2 - 1))) / 2
+                : supervisorLoad(state, sorted.get(supervisorsCount / 2));
     }
 
     private void removeInvalidSubscriptions(SubscriptionAssignmentView state, List<SubscriptionName> subscriptions) {
