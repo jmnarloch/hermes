@@ -34,21 +34,21 @@ public class AvailableWorkSupplier implements Supplier<SubscriptionAssignment> {
 
     private Optional<SubscriptionName> getNextSubscription(SubscriptionAssignmentView state, Set<String> availableSupervisors) {
         return state.getSubscriptions().stream()
-                .filter(s -> state.getAssignmentsForSubscription(s).size() < consumersPerSubscription)
+                .filter(s -> state.getAssignmentsCountForSubscription(s) < consumersPerSubscription)
                 .filter(s -> !Sets.difference(availableSupervisors, state.getSupervisorsForSubscription(s)).isEmpty())
-                .min(Comparator.comparingInt(s -> state.getAssignmentsForSubscription(s).size()));
+                .min(Comparator.comparingInt(s -> state.getAssignmentsCountForSubscription(s)));
     }
 
     private Optional<SubscriptionAssignment> getNextSubscriptionAssignment(SubscriptionAssignmentView state, Set<String> availableSupervisors, SubscriptionName subscriptionName) {
         return availableSupervisors.stream()
                 .filter(s -> !state.getSubscriptionsForSupervisor(s).contains(subscriptionName))
-                .min(Comparator.comparingInt(s -> state.getAssignmentsForSupervisor(s).size()))
+                .min(Comparator.comparingInt(s -> state.getAssignmentsCountForSupervisor(s)))
                 .map(s -> new SubscriptionAssignment(s, subscriptionName));
     }
 
     private Set<String> availableSupervisors(SubscriptionAssignmentView state) {
         return state.getSupervisors().stream()
-                .filter(s -> state.getSubscriptionsForSupervisor(s).size() < maxSubscriptionsPerConsumer)
+                .filter(s -> state.getAssignmentsCountForSupervisor(s) < maxSubscriptionsPerConsumer)
                 .filter(s -> !Sets.difference(state.getSubscriptions(), state.getSubscriptionsForSupervisor(s)).isEmpty())
                 .collect(toSet());
     }

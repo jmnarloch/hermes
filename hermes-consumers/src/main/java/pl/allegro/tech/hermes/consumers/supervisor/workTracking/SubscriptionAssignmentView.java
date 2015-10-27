@@ -39,6 +39,14 @@ public class SubscriptionAssignmentView {
         return ImmutableSet.copyOf(subscriptionAssignments.keySet());
     }
 
+    public int getSupervisorsCount() {
+        return supervisorAssignments.size();
+    }
+
+    public int getSubscriptionsCount() {
+        return subscriptionAssignments.size();
+    }
+
     public Set<String> getSupervisors() {
         return ImmutableSet.copyOf(supervisorAssignments.keySet());
     }
@@ -120,6 +128,14 @@ public class SubscriptionAssignmentView {
         return new SubscriptionAssignmentView(currentState.subscriptionAssignments);
     }
 
+    public int getAssignmentsCountForSubscription(SubscriptionName subscription) {
+        return subscriptionAssignments.get(subscription).size();
+    }
+
+    public int getAssignmentsCountForSupervisor(String supervisorId) {
+        return supervisorAssignments.get(supervisorId).size();
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(subscriptionAssignments);
@@ -132,5 +148,4 @@ public class SubscriptionAssignmentView {
         SubscriptionAssignmentView that = (SubscriptionAssignmentView) o;
         return Objects.equals(subscriptionAssignments, that.subscriptionAssignments);
     }
-
 }

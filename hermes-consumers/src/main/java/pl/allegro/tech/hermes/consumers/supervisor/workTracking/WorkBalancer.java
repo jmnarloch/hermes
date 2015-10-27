@@ -44,7 +44,7 @@ public class WorkBalancer {
 
     private boolean releaseWork(SubscriptionAssignmentView state) {
         List<String> sortedByLoad = getSupervisorsSortedAscendingByLoad(state);
-        int targetAverage = state.getSubscriptions().size() * consumersPerSubscription / state.getSupervisors().size();
+        int targetAverage = state.getSubscriptionsCount() * consumersPerSubscription / state.getSupervisorsCount();
         int currentMedian = getSupervisorsLoadMedian(state, sortedByLoad);
 
         String lowestLoadSupervisor = sortedByLoad.get(0);
@@ -65,10 +65,10 @@ public class WorkBalancer {
     }
 
     private int getSupervisorsLoadMedian(SubscriptionAssignmentView state, List<String> sorted) {
-        int supervisorsCount = sorted.size();
-        return supervisorsCount % 2 == 0
-                ? (supervisorLoad(state, sorted.get(supervisorsCount / 2)) + supervisorLoad(state, sorted.get(supervisorsCount / 2 - 1))) / 2
-                : supervisorLoad(state, sorted.get(supervisorsCount / 2));
+        int count = sorted.size();
+        return count % 2 == 0
+                ? (supervisorLoad(state, sorted.get(count / 2)) + supervisorLoad(state, sorted.get(count / 2 - 1))) / 2
+                : supervisorLoad(state, sorted.get(count / 2));
     }
 
     private void removeInvalidSubscriptions(SubscriptionAssignmentView state, List<SubscriptionName> subscriptions) {
@@ -104,10 +104,10 @@ public class WorkBalancer {
     }
 
     private int assignmentsCount(SubscriptionAssignmentView state, SubscriptionName subscription) {
-        return state.getAssignmentsForSubscription(subscription).size();
+        return state.getAssignmentsCountForSubscription(subscription);
     }
 
     private int supervisorLoad(SubscriptionAssignmentView state, String supervisorId) {
-        return state.getAssignmentsForSupervisor(supervisorId).size();
+        return state.getAssignmentsCountForSupervisor(supervisorId);
     }
 }
