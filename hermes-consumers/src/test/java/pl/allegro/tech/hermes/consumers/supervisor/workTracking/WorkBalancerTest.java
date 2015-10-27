@@ -144,11 +144,27 @@ public class WorkBalancerTest {
         SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors, workBalancer);
 
         // when
-        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3");
+        List<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3");
         SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
 
         // then
         assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c3")).hasSize(50 * 2 / 3);
+    }
+
+    @Test
+    public void shouldReassignWorkToFreeConsumers() {
+        // given
+        WorkBalancer workBalancer = new WorkBalancer(1, 100);
+        List<String> supervisors = ImmutableList.of("c1");
+        List<SubscriptionName> subscriptions = someSubscriptions(10);
+        SubscriptionAssignmentView currentState = initialState(subscriptions, supervisors, workBalancer);
+
+        // when
+        ImmutableList<String> extendedSupervisorsList = ImmutableList.of("c1", "c2", "c3", "c4", "c5");
+        SubscriptionAssignmentView stateAfterRebalance = workBalancer.balance(subscriptions, extendedSupervisorsList, currentState);
+
+        // then
+        assertThat(stateAfterRebalance.getAssignmentsForSupervisor("c5")).hasSize(2);
     }
 
     private SubscriptionAssignmentView initialState(List<SubscriptionName> subscriptions, List<String> supervisors) {

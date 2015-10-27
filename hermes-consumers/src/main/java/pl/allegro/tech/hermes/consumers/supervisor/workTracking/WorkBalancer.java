@@ -38,52 +38,57 @@ public class WorkBalancer {
         addNewSubscriptions(state, subscriptions);
         addNewSupervisors(state, supervisors);
 
-        do {
-            assignSupervisors(state);
-        } while (releaseWork(state));
+        assignSupervisors(state);
+
+        reassignWork(state);
 
         logger.info("Finished workload balance [subscriptions_count={}, consumers_count={}].",
                 subscriptions.size(), supervisors.size());
         return state;
     }
 
-    private boolean releaseWork(SubscriptionAssignmentView state) {
-        List<String> sortedByLoad = getSupervisorsSortedAscendingByLoad(state);
-        int targetAverage = state.getSubscriptionsCount() * consumersPerSubscription / state.getSupervisorsCount();
-        int currentMedian = getSupervisorsLoadMedian(state, sortedByLoad);
-
-        String lowestLoadSupervisor = sortedByLoad.get(0);
-        int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);
-
-        logger.debug("releaseWork [target_average={}, current_median={}, lowest_load_consumer={}, lowest_load={}].",
-                targetAverage, currentMedian, lowestLoadSupervisor, lowestLoad);
-
-        if (lowestLoad < currentMedian && lowestLoad < targetAverage) {
-            String maxLoadedSupervisor = sortedByLoad.get(sortedByLoad.size() - 1);
-            Optional<SubscriptionName> subscription = state.getSubscriptionsForSupervisor(maxLoadedSupervisor).stream()
-                    .filter(s -> !state.getSupervisorsForSubscription(s).contains(lowestLoadSupervisor))
-                    .findAny();
-
-            if (subscription.isPresent()) {
-                SubscriptionAssignment assignment = new SubscriptionAssignment(maxLoadedSupervisor, subscription.get());
-                state.removeAssignment(assignment);
-                return true;
-            }
+    private void reassignWork(SubscriptionAssignmentView state) {
+        if (state.getSubscriptionsCount() < 2) {
+            return;
         }
-        return false;
+        boolean transferred;
+        do {
+            transferred = false;
+            String maxLoaded = maxLoadedSupervisor(state);
+            String minLoaded = minLoadedSupervisor(state);
+            int maxLoad = supervisorLoad(state, maxLoaded);
+            int minLoad = supervisorLoad(state, minLoaded);
+
+            while (maxLoad > minLoad + 1) {
+                Optional<SubscriptionName> subscription = getSubscriptionForTransfer(state, maxLoaded, minLoaded);
+                if (subscription.isPresent()) {
+                    state.removeAssignment(new SubscriptionAssignment(maxLoaded, subscription.get()));
+                    state.addAssignment(new SubscriptionAssignment(minLoaded, subscription.get()));
+                    transferred = true;
+                } else break;
+                maxLoad--;
+                minLoad++;
+            }
+        } while(transferred);
     }
 
-    private List<String> getSupervisorsSortedAscendingByLoad(SubscriptionAssignmentView state) {
+    private String maxLoadedSupervisor(SubscriptionAssignmentView state) {
         return state.getSupervisors().stream()
-                .sorted(Comparator.comparingInt(s -> supervisorLoad(state, s)))
-                .collect(toList());
+                .max(Comparator.comparingInt(s -> supervisorLoad(state, s)))
+                .get();
     }
 
-    private int getSupervisorsLoadMedian(SubscriptionAssignmentView state, List<String> sorted) {
-        int count = sorted.size();
-        return count % 2 == 0
-                ? (supervisorLoad(state, sorted.get(count / 2)) + supervisorLoad(state, sorted.get(count / 2 - 1))) / 2
-                : supervisorLoad(state, sorted.get(count / 2));
+    private String minLoadedSupervisor(SubscriptionAssignmentView state) {
+        return state.getSupervisors().stream()
+                .min(Comparator.comparingInt(s -> supervisorLoad(state, s)))
+                .get();
+    }
+
+    private Optional<SubscriptionName> getSubscriptionForTransfer(SubscriptionAssignmentView state, String maxLoaded, String minLoaded) {
+        return state.getSubscriptionsForSupervisor(maxLoaded).stream()
+                .filter(s -> !state.getSupervisorsForSubscription(s).contains(minLoaded))
+                .findAny();
+
     }
 
     private void removeInvalidSubscriptions(SubscriptionAssignmentView state, List<SubscriptionName> subscriptions) {
