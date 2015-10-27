@@ -52,7 +52,7 @@ public class WorkBalancer {
         if (lowestLoad < currentMedian && lowestLoad < targetAverage) {
             String maxLoadedSupervisor = sortedByLoad.get(sortedByLoad.size() - 1);
             SubscriptionAssignment assignment = state.getAssignmentsForSupervisor(maxLoadedSupervisor).iterator().next();
-            state.removeAssignment(assignment.getSubscriptionName(), assignment.getSupervisorId());
+            state.removeAssignment(assignment);
             return true;
         }
         return false;

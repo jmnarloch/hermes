@@ -85,10 +85,6 @@ public class SubscriptionAssignmentView {
         supervisorAssignments.putIfAbsent(supervisorId, new HashSet<>());
     }
 
-    public void addAssignment(SubscriptionName subscriptionName, String supervisorId) {
-        addAssignment(new SubscriptionAssignment(supervisorId, subscriptionName));
-    }
-
     public void addAssignment(SubscriptionAssignment assignment) {
         subscriptionAssignments.get(assignment.getSubscriptionName()).add(assignment);
         supervisorAssignments.get(assignment.getSupervisorId()).add(assignment);
@@ -98,6 +94,11 @@ public class SubscriptionAssignmentView {
         SubscriptionAssignment assignment = new SubscriptionAssignment(supervisorId, subscriptionName);
         subscriptionAssignments.get(subscriptionName).remove(assignment);
         supervisorAssignments.get(supervisorId).remove(assignment);
+    }
+
+    public void removeAssignment(SubscriptionAssignment assignment) {
+        subscriptionAssignments.get(assignment.getSubscriptionName()).remove(assignment);
+        supervisorAssignments.get(assignment.getSupervisorId()).remove(assignment);
     }
 
     public SubscriptionAssignmentView deletions(SubscriptionAssignmentView target) {
@@ -147,5 +148,6 @@ public class SubscriptionAssignmentView {
         if (o == null || getClass() != o.getClass()) return false;
         SubscriptionAssignmentView that = (SubscriptionAssignmentView) o;
         return Objects.equals(subscriptionAssignments, that.subscriptionAssignments);
+
     }
 }
