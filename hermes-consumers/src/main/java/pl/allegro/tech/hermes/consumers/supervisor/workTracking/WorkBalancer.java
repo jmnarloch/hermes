@@ -6,7 +6,6 @@ import pl.allegro.tech.hermes.api.SubscriptionName;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.toList;
@@ -27,6 +26,9 @@ public class WorkBalancer {
                                               List<String> supervisors,
                                               SubscriptionAssignmentView currentState) {
 
+        logger.info("Initializing workload balance [subscriptions_count=%s, consumers_count=%s]."
+                , subscriptions.size(), supervisors.size());
+
         SubscriptionAssignmentView state = SubscriptionAssignmentView.copyOf(currentState);
 
         removeInvalidSubscriptions(state, subscriptions);
@@ -39,6 +41,8 @@ public class WorkBalancer {
             assignSupervisors(state);
         } while (releaseWork(state));
 
+        logger.info("Finished workload balance [subscriptions_count=%s, consumers_count=%s].",
+                subscriptions.size(), supervisors.size());
         return state;
     }
 
@@ -49,6 +53,10 @@ public class WorkBalancer {
 
         String lowestLoadSupervisor = sortedByLoad.get(0);
         int lowestLoad = supervisorLoad(state, lowestLoadSupervisor);
+
+        logger.debug("releaseWork [target_average=%s, current_median=%s, lowest_load_consumer=%s, lowest_load=%s].",
+                targetAverage, currentMedian, lowestLoadSupervisor, lowestLoad);
+
         if (lowestLoad < currentMedian && lowestLoad < targetAverage) {
             String maxLoadedSupervisor = sortedByLoad.get(sortedByLoad.size() - 1);
             SubscriptionAssignment assignment = state.getAssignmentsForSupervisor(maxLoadedSupervisor).iterator().next();
