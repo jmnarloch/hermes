@@ -324,7 +324,7 @@ public class HermesMetrics {
     private <T> void registerOrUpdateStaticValueGauge(String name, T value) {
         Gauge gauge = metricRegistry.getGauges().get(name);
         if (gauge == null) {
-            metricRegistry.register(Gauges.CONSUMERS_WORKLOAD_SELECTIVE_MISSING_RESOURCES, new StaticValueGauge<>(value));
+            metricRegistry.register(name, new StaticValueGauge<>(value));
         } else if (gauge instanceof StaticValueGauge) {
             ((StaticValueGauge) gauge).setValue(value);
         } else {

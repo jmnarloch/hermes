@@ -84,6 +84,20 @@ public class SubscriptionAssignmentViewTest {
     }
 
     @Test
+    public void shouldDeleteAssignmentFromExistingSubscription() {
+        // given
+        SubscriptionName s1 = anySubscriptionName();
+        SubscriptionAssignmentView current = subscriptionAssignmentView(s1, ImmutableSet.of(assignment(s1, "c1"), assignment(s1, "c2")));
+        SubscriptionAssignmentView target = subscriptionAssignmentView(s1, ImmutableSet.of(assignment(s1, "c1")));
+
+        // when
+        SubscriptionAssignmentView deletions = current.deletions(target);
+
+        // then
+        assertThat(deletions.getAssignmentsForSubscription(s1)).containsOnly(assignment(s1, "c2"));
+    }
+
+    @Test
     public void shouldAddNewSubscription() {
         // given
         SubscriptionName s1 = anySubscriptionName();
