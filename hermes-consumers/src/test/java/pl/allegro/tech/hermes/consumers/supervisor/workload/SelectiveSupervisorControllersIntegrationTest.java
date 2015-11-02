@@ -154,7 +154,7 @@ public class SelectiveSupervisorControllersIntegrationTest extends ZookeeperBase
 
         // then
         awaitUntilAssignmentExists("com.example.topic$test", "c1");
-        awaitUntilAssignmentExists("com.example.topic$test", "c1");
+        awaitUntilAssignmentExists("com.example.topic$test", "c2");
     }
 
     @Test

@@ -61,7 +61,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
 
         // when
         workTracker.dropAssignment(sub);
-        wait.untilZookeeperPathIsEmpty(basePath + "/" + sub.toSubscriptionName());
+        wait.untilZookeeperPathIsEmpty(basePath, sub.toSubscriptionName().toString());
 
         // then
         assertThat(workTracker.getAssignments(sub)).extracting(SubscriptionAssignment::getConsumerNodeId).doesNotContain(supervisorId);
@@ -92,7 +92,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         workTracker.apply(view);
 
         // then
-        wait.untilZookeeperPathIsCreated(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
+        wait.untilZookeeperPathIsCreated(basePath, s1.toSubscriptionName().toString(), supervisorId);
     }
 
     @Test
@@ -104,7 +104,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         workTracker.apply(new SubscriptionAssignmentView(Collections.emptyMap()));
 
         // then
-        wait.untilZookeeperPathNotExists(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
+        wait.untilZookeeperPathNotExists(basePath, s1.toSubscriptionName().toString(), supervisorId);
     }
 
     @Test
@@ -121,9 +121,9 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
         workTracker.apply(view);
 
         // then
-        wait.untilZookeeperPathIsCreated(basePath + "/" + s1.toSubscriptionName() + "/" + supervisorId);
-        wait.untilZookeeperPathIsCreated(basePath + "/" + s1.toSubscriptionName() + "/" + "otherConsumer");
-        wait.untilZookeeperPathIsCreated(basePath + "/" + s2.toSubscriptionName() + "/" + supervisorId);
+        wait.untilZookeeperPathIsCreated(basePath, s1.toSubscriptionName().toString(), supervisorId);
+        wait.untilZookeeperPathIsCreated(basePath, s1.toSubscriptionName().toString(), "otherConsumer");
+        wait.untilZookeeperPathIsCreated(basePath, s2.toSubscriptionName().toString(), supervisorId);
     }
 
     private SubscriptionAssignment assignment(String supervisorId, SubscriptionName subscriptionName) {
@@ -139,7 +139,7 @@ public class WorkTrackerTest extends ZookeeperBaseTest {
 
     private Subscription forceAssignment(Subscription sub) {
         workTracker.forceAssignment(sub);
-        wait.untilZookeeperPathIsCreated(basePath + "/" + sub.toSubscriptionName() + "/" + supervisorId);
+        wait.untilZookeeperPathIsCreated(basePath, sub.toSubscriptionName().toString(), supervisorId);
         return sub;
     }
 
